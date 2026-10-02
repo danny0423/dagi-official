@@ -51,3 +51,6 @@ next-env.d.ts
 
 # 後台上傳檔（本機儲存模式）
 /storage/
+
+# UI 審查截圖（只放本機）
+/review-screens/
