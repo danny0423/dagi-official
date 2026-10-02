@@ -45,3 +45,9 @@ next-env.d.ts
 
 # prisma
 /lib/generated/
+
+# 原始素材（166MB，只放本機，挑好的再放進 public/）
+/assets/
+
+# 後台上傳檔（本機儲存模式）
+/storage/

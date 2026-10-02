@@ -1,6 +1,6 @@
 # 技術架構與需求
 
-已拍板的決策編號（D1～D9）見 `docs/decisions.md`。頁面與區塊內容見 `docs/site-architecture.md`。
+已拍板的決策（D 編號）見 `docs/decisions.md`。頁面與區塊內容見 `docs/site-architecture.md`。
 
 ## 1. 需求
 
@@ -15,7 +15,7 @@
 | F5 | 後台內容管理（新增／修改／刪除／上下架）：工程實績、最新消息、職缺、團隊成員、證照 | `/admin` |
 | F6 | 後台公司資料設定：統編、登記證字號、等級、地址、電話等，全站從這裡讀 | `/admin/settings` |
 | F7 | 後台表單收件匣：查看洽詢與協力廠商資料，可標記處理狀態 | `/admin/inquiries` |
-| F8 | 圖片上傳到 S3，後台可管理 | 所有內容 |
+| F8 | 圖片上傳，後台可管理（先存本機，設定 `STORAGE_DRIVER=s3` 換 S3，D16） | 所有內容 |
 
 ### SEO 需求
 
@@ -58,11 +58,11 @@
 |---|---|---|
 | 前台＋後台＋API | Next.js 16（App Router），單一專案 | D6、D8 |
 | 資料庫 | PostgreSQL，放在 AWS RDS | D6、D9 |
-| 圖片儲存 | AWS S3 | D9 |
+| 圖片儲存 | 本機 `storage/uploads/`（預設）或 AWS S3，`STORAGE_DRIVER` 切換 | D9、D16 |
 | 執行環境 | AWS EC2 + Docker | D9 |
 | 反向代理＋HTTPS | Nginx + certbot（Let's Encrypt） | D10 |
 | ORM | Prisma 7.10（固定穩定版，npm 的 latest 標籤目前指向 8.0 rc） | D11 |
-| 後台登入 | 自己寫 session | D12 |
+| 後台登入 | 自己寫：argon2id 密碼雜湊＋DB session（cookie 放隨機 token、DB 只存 SHA-256） | D12 |
 | 寄信 | AWS SES | D13 |
 | CI/CD | GitHub Actions | N4 |
 | 分析 | GA4 | D4 |
@@ -80,18 +80,25 @@ flowchart LR
   GH[GitHub main] -->|Actions 自動部署| N
 ```
 
-## 4. Next.js 目錄（骨架已建）
+## 4. Next.js 目錄
 
 | 路徑 | 用途 |
 |---|---|
 | `app/(site)/` | 前台頁面（之後裝 GA4、頁首頁尾） |
-| `app/admin/` | 後台頁面（`noindex`、不裝 GA4） |
-| `app/api/` | Route Handlers；目前只有 `/api/health` |
+| `app/admin/` | 後台（`noindex`、不裝 GA4）。`login/` 登入頁；`(panel)/` 需登入的頁面；`_actions/` server actions；`_components/` 後台元件；`admin.css` 後台樣式 |
+| `app/api/admin/` | 後台 API：`login`、`logout`、`media`（上傳／列表；不經 proxy，因為圖片上限 10MB） |
+| `app/api/health` | 健康檢查 |
+| `app/media/[...path]/` | 本機儲存模式下提供上傳的圖片（擋路徑穿越、只回圖片 MIME、長期快取） |
 | `app/robots.ts`、`app/sitemap.ts` | S3 |
-| `proxy.ts` | 沒有 session cookie 的人擋出 `/admin`（Next.js 16 把 `middleware.ts` 改名為 `proxy.ts`） |
+| `proxy.ts` | 沒有 session cookie 的人擋出 `/admin`（只看 cookie；真正驗證在 `lib/admin/guard.ts`） |
+| `lib/admin/` | 後台共用：`guard.ts`（`requireAdmin()`／`requireRole()`）、`session.ts`、`rate-limit.ts`（登入頻率限制，記憶體內）、`validation.ts`（zod） |
+| `lib/storage/` | 圖片儲存介面（put／delete／getUrl），`local`、`s3` 兩種實作 |
+| `lib/media.ts` | 上傳驗證（JPG／PNG／WebP、10MB、隨機檔名）與圖片引用檢查 |
 | `lib/db.ts` | Prisma client（`@prisma/adapter-pg`） |
 | `lib/generated/prisma/` | `prisma generate` 產物，不進 git |
-| `prisma/schema.prisma` | 資料表定義，目前沒有任何 model |
+| `prisma/schema.prisma` | 資料表定義（第 5 節） |
+| `prisma/seed.ts` | 初始資料：公司資料＋第一個管理員（`npm run db:seed`） |
+| `storage/uploads/` | 本機儲存模式的圖片，不進 git；Docker 部署要掛 volume |
 
 ### 前台網址對照
 
@@ -113,7 +120,9 @@ flowchart LR
 
 每頁目前只有 `<h1>` 佔位，畫面由另外的 AI 設計。
 
-## 5. 資料表草稿
+## 5. 資料表
+
+已實作於 `prisma/schema.prisma`（migration `init_admin`）。內容表（projects、news、jobs、team_members、certifications）都有上下架、排序、建立／更新時間；projects 與 news 有唯一 slug；工程實績圖庫另有 `project_images`。
 
 | 表 | 存什麼 | 前台用在哪 |
 |---|---|---|
@@ -121,7 +130,7 @@ flowchart LR
 | `admin_users` | 後台帳號、密碼雜湊、角色（管理員／編輯） | — |
 | `sessions` | 後台登入 session（D12） | — |
 | `projects` | 工程實績：名稱、類別、地點、構造、工期、狀態、上下架 | 工程實績、首頁精選 |
-| `media` | S3 上的圖片：路徑、alt 文字、屬於哪筆資料 | 全站 |
+| `media` | 上傳的圖片：儲存路徑、alt、尺寸、大小、MIME（被哪筆內容使用記在內容表的外鍵，被引用時不能刪） | 全站 |
 | `team_members` | 姓名、職稱、證照、照片、經歷、是否已取得同意公開 | 專業團隊 |
 | `certifications` | 證照名稱、發證單位、有效期限 | 登記資格 |
 | `news` | 標題、內文、日期、上下架 | 最新消息 |
@@ -129,7 +138,7 @@ flowchart LR
 | `inquiries` | 工程洽詢表單內容、處理狀態 | 後台收件匣 |
 | `vendor_applications` | 協力廠商表單內容、處理狀態 | 後台收件匣 |
 
-`team_members` 的「已取得同意公開」沒勾就不顯示在前台（對應 `AGENTS.md` 內容鐵則）。
+`team_members` 的「已取得同意公開」沒勾就不顯示在前台（對應 `AGENTS.md` 內容鐵則）：後台禁止未同意就上架，前台查詢用 `lib/content.ts` 的 `publicTeamMemberWhere`。
 
 ## 6. 環境
 

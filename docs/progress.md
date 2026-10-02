@@ -14,8 +14,9 @@
 | # | 項目 | 狀態 | 依據 |
 |---|---|---|---|
 | 1 | 前台畫面設計（風格已定：清水模） | 待交給設計 AI | `docs/design-brief.md` |
-| 2 | Prisma schema（11 張表） | 未開始 | `docs/tech-architecture.md` 第 5 節 |
-| 3 | 後台登入（D12） | 未開始 | `docs/decisions.md` D12 |
+| 2 | Prisma schema（11 張表＋工程圖庫 `project_images`） | 已完成：`prisma/schema.prisma`，migration `init_admin`；`npm run db:seed` 建公司資料（使用者提供的名稱、統編、地址、代表人、設立日期）與第一個管理員 | `docs/tech-architecture.md` 第 5 節 |
+| 3 | 後台登入（D12） | 已完成：argon2id、DB session（只存 token 的 SHA-256）、7 天到期、登入頻率限制（記憶體內，多台機器要換）、ADMIN／EDITOR 權限 | `docs/decisions.md` D12、`lib/admin/` |
+| 3a | 後台系統 | 已完成：儀表板、公司資料、五種內容管理（新增／編輯／刪除／上下架／排序）、收件匣、媒體庫、帳號管理；curl 實測通過。待辦：前台改讀資料庫、S3 實測（D16）、瀏覽器人工操作驗證畫面 | `app/admin/`、`docs/tech-architecture.md` 第 4 節 |
 | 4 | 洽詢表單＋SES 寄信＋Turnstile | 未開始 | `docs/tech-architecture.md` F2、N2 |
 | 5 | GA4 事件 G1～G5 | 未開始 | `docs/tech-architecture.md` GA4 需求 |
 | 6 | EC2 部署＋Nginx＋GitHub Actions | 未開始 | `docs/decisions.md` D9、D10 |

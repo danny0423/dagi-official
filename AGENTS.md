@@ -1,6 +1,6 @@
 # dagi-official
 
-隆磐建設成立的新公司官網。新公司是**綜合營造業**（營造業法下的承攬商：負責施工，不買地、不賣房）。Next.js 骨架已建好，每頁只有佔位標題，畫面尚未設計。本機啟動方式見 `README.md`。技術棧：Next.js 單一專案（前台＋後台＋API）、PostgreSQL（RDS）、EC2 + Docker、S3、GA4。
+隆磐建設成立的新公司官網。新公司是**綜合營造業**（營造業法下的承攬商：負責施工，不買地、不賣房）。公司：達吉營造有限公司。首頁已設計，其餘前台頁設計中；後台系統已完成（`app/admin/`）。本機啟動方式見 `README.md`。技術棧：Next.js 單一專案（前台＋後台＋API）、PostgreSQL（RDS）、EC2 + Docker、S3、GA4。
 
 ## 已拍板的決策
 
@@ -25,6 +25,9 @@
 - 開發機的 5432、5433 已被別的服務占用，開發用 PostgreSQL 對外 port 是 5434。
 - Git push 走 SSH（`git@github.com:danny0423/dagi-official.git`）；HTTPS 會用到本機存的另一個 GitHub 帳號而 403。
 - `.env` 不進 git，只 commit `.env.example`。
+- `assets/dagi素材/`（本機、不進 git）經檢視是 隆磐建設 舊官網素材，不是達吉的 logo 或工地照，不可用在網站上（`docs/assets-manifest.md`）；唯一例外是首頁主視覺暫用的一張氛圍照（D17），上線前要換掉。
+- `company.name` 是「達吉營造有限公司」，已含「營造」；需要短稱用 `company.shortName`，不要寫成 `${company.name}營造`。
+- 資料庫一開始沒有管理員帳號，要先跑 `npm run db:seed` 建立（指令見 `README.md`）。
 
 ## 文件
 

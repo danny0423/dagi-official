@@ -1,6 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
+// 資料表定義。需求與用途見 docs/tech-architecture.md 第 5 節。
+// 命名：model 用 PascalCase、欄位用 camelCase；資料庫表名與欄位名一律 @@map／@map 成 snake_case。
 
 generator client {
   provider = "prisma-client"
@@ -11,4 +10,285 @@ datasource db {
   provider = "postgresql"
 }
 
-// 資料表草稿見 docs/tech-architecture.md 第 5 節
+// ───────── 列舉 ─────────
+
+// 後台角色：ADMIN 可管帳號與公司資料；EDITOR 只能管內容與收件匣
+enum AdminRole {
+  ADMIN
+  EDITOR
+}
+
+// 收件匣處理狀態：未處理／處理中／已結案
+enum InboxStatus {
+  NEW
+  IN_PROGRESS
+  CLOSED
+}
+
+// 工程狀態：規劃中／施工中／已完工
+enum ProjectStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+}
+
+// ───────── 公司資料（只有一筆，id 固定為 1） ─────────
+
+model CompanySettings {
+  id                    Int       @id @default(1)
+  name                  String // 公司名稱
+  englishName           String?   @map("english_name")
+  taxId                 String?   @map("tax_id") // 統一編號
+  representative        String? // 代表人
+  foundedOn             DateTime? @map("founded_on") @db.Date // 設立日期
+  contractorGrade       String?   @map("contractor_grade") // 營造業等級（甲／乙／丙等）
+  licenseNumber         String?   @map("license_number") // 營造業登記證字號
+  registeredCity        String?   @map("registered_city") // 登記縣市
+  registrationAuthority String?   @map("registration_authority") // 登記機關
+  capital               String? // 實收資本額（文字，例：新臺幣○萬元）
+  engineerCount         Int?      @map("engineer_count") // 專任工程人員人數
+  address               String? // 公司登記地址
+  phone                 String?
+  fax                   String?
+  email                 String?
+  serviceHours          String?   @map("service_hours") // 服務時間
+  responseTime          String?   @map("response_time") // 洽詢回覆時間
+  groupUrl              String?   @map("group_url") // 集團（隆磐建設）官網
+  description           String? // 一句話介紹（SEO description）
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@map("company_settings")
+}
+
+// ───────── 後台帳號與登入（D12） ─────────
+
+model AdminUser {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique // 一律存小寫
+  passwordHash String    @map("password_hash") // argon2id
+  name         String
+  role         AdminRole @default(EDITOR)
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  sessions Session[]
+  uploads  Media[]
+
+  @@map("admin_users")
+}
+
+// cookie 裡放隨機 token，資料庫只存 token 的 SHA-256，資料庫外洩也無法直接拿來登入
+model Session {
+  id        Int      @id @default(autoincrement())
+  tokenHash String   @unique @map("token_hash")
+  userId    Int      @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ───────── 圖片 ─────────
+
+// storageKey 是儲存體內的相對路徑（例：2026/10/<隨機 id>.png）；
+// 網址由 lib/storage 依 STORAGE_DRIVER 組出，換 S3 時不用改資料。
+// 被內容引用時資料庫層用 Restrict 擋刪除，後台刪除前也會先檢查並提示。
+model Media {
+  id           Int      @id @default(autoincrement())
+  storageKey   String   @unique @map("storage_key")
+  originalName String?  @map("original_name")
+  alt          String   @default("")
+  width        Int?
+  height       Int?
+  size         Int // bytes
+  mimeType     String   @map("mime_type")
+  uploadedById Int?     @map("uploaded_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  uploadedBy          AdminUser?      @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  projectCovers       Project[]       @relation("ProjectCover")
+  projectGallery      ProjectImage[]
+  newsCovers          News[]          @relation("NewsCover")
+  teamPhotos          TeamMember[]    @relation("TeamPhoto")
+  certificationImages Certification[] @relation("CertificationImage")
+
+  @@map("media")
+}
+
+// ───────── 內容（皆有上下架、排序、建立／更新時間） ─────────
+
+model Project {
+  id           Int           @id @default(autoincrement())
+  slug         String        @unique
+  title        String
+  category     String? // 類別（住宅、廠房、公共工程…）
+  location     String?
+  structure    String? // 構造（RC、SRC、SS…）
+  scale        String? // 規模（樓層、樓地板面積）
+  client       String? // 業主／起造人
+  startDate    DateTime?     @map("start_date") @db.Date
+  endDate      DateTime?     @map("end_date") @db.Date
+  status       ProjectStatus @default(IN_PROGRESS)
+  summary      String?
+  description  String?
+  featured     Boolean       @default(false) // 首頁精選
+  coverImageId Int?          @map("cover_image_id")
+  published    Boolean       @default(false)
+  sortOrder    Int           @default(0) @map("sort_order")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  coverImage Media?         @relation("ProjectCover", fields: [coverImageId], references: [id], onDelete: Restrict)
+  images     ProjectImage[]
+
+  @@index([published, sortOrder])
+  @@map("projects")
+}
+
+// 工程實績的圖庫（多張圖、可排序）
+model ProjectImage {
+  projectId Int @map("project_id")
+  mediaId   Int @map("media_id")
+  sortOrder Int @default(0) @map("sort_order")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  media   Media   @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+
+  @@id([projectId, mediaId])
+  @@index([mediaId])
+  @@map("project_images")
+}
+
+model News {
+  id           Int      @id @default(autoincrement())
+  slug         String   @unique
+  title        String
+  summary      String?
+  content      String
+  publishedAt  DateTime @map("published_at") @db.Date // 顯示在前台的日期
+  coverImageId Int?     @map("cover_image_id")
+  published    Boolean  @default(false)
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  coverImage Media? @relation("NewsCover", fields: [coverImageId], references: [id], onDelete: Restrict)
+
+  @@index([published, publishedAt])
+  @@map("news")
+}
+
+model Job {
+  id             Int      @id @default(autoincrement())
+  title          String
+  department     String?
+  location       String?
+  employmentType String?  @map("employment_type") // 全職、約聘…
+  salary         String? // 薪資範圍
+  description    String? // 工作內容
+  requirements   String? // 條件
+  benefits       String? // 福利
+  published      Boolean  @default(false)
+  sortOrder      Int      @default(0) @map("sort_order")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@index([published, sortOrder])
+  @@map("jobs")
+}
+
+// consentToPublish 沒勾的人不得出現在前台（AGENTS.md 內容鐵則）。
+// 前台查詢請用 lib/content.ts 的 publicTeamMemberWhere；後台也禁止「未同意卻上架」。
+model TeamMember {
+  id               Int       @id @default(autoincrement())
+  name             String
+  title            String? // 職稱
+  licenses         String? // 證照（一行一張）
+  bio              String? // 簡介
+  experience       String? // 過往經歷（非本公司承攬的需註明）
+  photoId          Int?      @map("photo_id")
+  consentToPublish Boolean   @default(false) @map("consent_to_publish")
+  consentDate      DateTime? @map("consent_date") @db.Date // 同意書簽署日期
+  published        Boolean   @default(false)
+  sortOrder        Int       @default(0) @map("sort_order")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  photo Media? @relation("TeamPhoto", fields: [photoId], references: [id], onDelete: Restrict)
+
+  @@index([published, consentToPublish, sortOrder])
+  @@map("team_members")
+}
+
+model Certification {
+  id                Int       @id @default(autoincrement())
+  name              String
+  issuer            String? // 發證單位
+  certificateNumber String?   @map("certificate_number")
+  issuedOn          DateTime? @map("issued_on") @db.Date
+  expiresOn         DateTime? @map("expires_on") @db.Date // 有效期限（空白代表無期限）
+  note              String?
+  imageId           Int?      @map("image_id")
+  published         Boolean   @default(false)
+  sortOrder         Int       @default(0) @map("sort_order")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  image Media? @relation("CertificationImage", fields: [imageId], references: [id], onDelete: Restrict)
+
+  @@index([published, sortOrder])
+  @@map("certifications")
+}
+
+// ───────── 收件匣（前台表單寫入，後台查看與標記狀態） ─────────
+
+model Inquiry {
+  id          Int         @id @default(autoincrement())
+  name        String // 聯絡人
+  company     String?
+  phone       String?
+  email       String?
+  projectType String?     @map("project_type") // 工程類型
+  location    String? // 工程地點
+  budget      String? // 預算規模
+  message     String
+  status      InboxStatus @default(NEW)
+  adminNote   String?     @map("admin_note") // 後台處理備註
+  ipAddress   String?     @map("ip_address")
+  userAgent   String?     @map("user_agent")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@map("inquiries")
+}
+
+model VendorApplication {
+  id          Int         @id @default(autoincrement())
+  companyName String      @map("company_name")
+  taxId       String?     @map("tax_id") // 統一編號
+  contactName String      @map("contact_name")
+  phone       String?
+  email       String?
+  trade       String? // 工種／專業項目
+  serviceArea String?     @map("service_area") // 服務區域
+  message     String?
+  status      InboxStatus @default(NEW)
+  adminNote   String?     @map("admin_note")
+  ipAddress   String?     @map("ip_address")
+  userAgent   String?     @map("user_agent")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@map("vendor_applications")
+}
