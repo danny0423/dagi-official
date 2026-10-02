@@ -18,8 +18,18 @@
 - 有關 隆磐建設 的事實，只能用 `【待填】` 表示，不可以自己推測。
 - 隆磐建設 的工程實績**屬於 隆磐**，不可以當作新公司的實績顯示；集團關係頁只能放連結。
 
+## 已知陷阱
+
+- Next.js 16：`middleware.ts` 已改名 `proxy.ts`，匯出函式名稱是 `proxy`。
+- Prisma：npm 的 `latest` 標籤指向 8.0 rc，本專案固定 7.10（`prisma`、`@prisma/client`、`@prisma/adapter-pg` 三個版本要一致）。Prisma 7 必須用 driver adapter，設定檔是 `prisma.config.ts`。
+- 開發機的 5432、5433 已被別的服務占用，開發用 PostgreSQL 對外 port 是 5434。
+- Git push 走 SSH（`git@github.com:danny0423/dagi-official.git`）；HTTPS 會用到本機存的另一個 GitHub 帳號而 403。
+- `.env` 不進 git，只 commit `.env.example`。
+
 ## 文件
 
+- `docs/progress.md` — 接手時先讀：做到哪、下一步是什麼
+- `docs/design-brief.md` — 做前台畫面、改樣式或元件時讀：風格（清水模）、照片佔位規則、技術規則、完成條件
 - `docs/site-architecture.md` — 動到頁面、區塊或文案時讀：完整 sitemap、每頁區塊順序、placeholder 範例文字
 - `docs/content-collection.md` — 要追蹤缺哪些真實資料、或判斷哪一頁能不能上線時讀
 - `docs/tech-architecture.md` — 寫程式、建資料表、設定部署前讀：需求清單（功能／SEO／GA4／非功能）、技術棧、目錄規劃、資料表草稿
