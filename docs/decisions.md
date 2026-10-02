@@ -14,10 +14,15 @@
 | D6 | 後台自己寫，不用 Payload 等現成 CMS；前端 Next.js、資料庫 PostgreSQL | 2026-10-02 |
 | D7 | 雲端用 AWS | 2026-10-02 |
 | D8 | 前台、後台（`/admin`）、API 全部包成一個 Next.js 專案 | 2026-10-02 |
-| D9 | 部署：Amplify Hosting（Next.js）+ RDS（PostgreSQL）+ S3（圖片） | 2026-10-02 |
+| D9 | 部署：EC2 + Docker（Next.js）+ RDS（PostgreSQL）+ S3（圖片）；主機更新、HTTPS、部署流程由自己維護 | 2026-10-02 |
+| D10 | 反向代理＋HTTPS：Nginx + certbot（Let's Encrypt，自動續約） | 2026-10-02 |
+| D11 | ORM：Prisma | 2026-10-02 |
+| D12 | 後台登入自己寫：密碼雜湊＋DB session 表＋httpOnly cookie | 2026-10-02 |
+| D13 | 寄信：AWS SES（上線前要申請移出 sandbox） | 2026-10-02 |
 
 ## 待決
 
 | # | 問題 | 選項 | 建議 |
 |---|---|---|---|
 | Q1 | 工程實績上線方式 | 1. 先不開，放人員個人經歷 2. 放施工中工程 | 1（細節見 `docs/site-architecture.md` Sitemap 下方） |
+| Q5 | AWS 區域 | 選離台灣最近、且 EC2／RDS／S3／SES 都有的區域 | 開 AWS 帳號時確認 |
