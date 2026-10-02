@@ -1,6 +1,6 @@
 # dagi-official
 
-隆磐建設成立的新公司官網。新公司是**綜合營造業**（營造業法下的承攬商：負責施工，不買地、不賣房）。網站目前在規劃階段，還沒有程式碼。技術棧：Next.js 單一專案（前台＋後台＋API）、PostgreSQL（RDS）、EC2 + Docker、S3、GA4。
+隆磐建設成立的新公司官網。新公司是**綜合營造業**（營造業法下的承攬商：負責施工，不買地、不賣房）。Next.js 骨架已建好，每頁只有佔位標題，畫面尚未設計。本機啟動方式見 `README.md`。技術棧：Next.js 單一專案（前台＋後台＋API）、PostgreSQL（RDS）、EC2 + Docker、S3、GA4。
 
 ## 已拍板的決策
 
@@ -24,3 +24,13 @@
 - `docs/content-collection.md` — 要追蹤缺哪些真實資料、或判斷哪一頁能不能上線時讀
 - `docs/tech-architecture.md` — 寫程式、建資料表、設定部署前讀：需求清單（功能／SEO／GA4／非功能）、技術棧、目錄規劃、資料表草稿
 - `docs/decisions.md` — 做技術選型或推翻既有決策前讀：決策紀錄與待決事項
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

@@ -1,0 +1,17 @@
+# 開發用 PostgreSQL。Next.js 在本機用 npm run dev 跑。
+# 對外 port 用 5434，因為這台機器的 5432、5433 已被占用。
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dagi
+      POSTGRES_PASSWORD: dagi
+      POSTGRES_DB: dagi
+    ports:
+      - "5434:5432"
+    volumes:
+      - dagi-pgdata:/var/lib/postgresql/data
+
+volumes:
+  dagi-pgdata:

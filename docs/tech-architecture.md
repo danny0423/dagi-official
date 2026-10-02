@@ -56,12 +56,12 @@
 
 | 層 | 技術 | 依據 |
 |---|---|---|
-| 前台＋後台＋API | Next.js（App Router），單一專案 | D6、D8 |
+| 前台＋後台＋API | Next.js 16（App Router），單一專案 | D6、D8 |
 | 資料庫 | PostgreSQL，放在 AWS RDS | D6、D9 |
 | 圖片儲存 | AWS S3 | D9 |
 | 執行環境 | AWS EC2 + Docker | D9 |
 | 反向代理＋HTTPS | Nginx + certbot（Let's Encrypt） | D10 |
-| ORM | Prisma | D11 |
+| ORM | Prisma 7.10（固定穩定版，npm 的 latest 標籤目前指向 8.0 rc） | D11 |
 | 後台登入 | 自己寫 session | D12 |
 | 寄信 | AWS SES | D13 |
 | CI/CD | GitHub Actions | N4 |
@@ -80,16 +80,38 @@ flowchart LR
   GH[GitHub main] -->|Actions 自動部署| N
 ```
 
-## 4. Next.js 目錄規劃
+## 4. Next.js 目錄（骨架已建）
 
 | 路徑 | 用途 |
 |---|---|
-| `app/(site)/` | 前台頁面（裝 GA4、產 SEO metadata） |
-| `app/admin/` | 後台頁面（需登入、`noindex`、不裝 GA4） |
-| `app/api/` | Route Handlers：表單送出、圖片上傳、後台 CRUD |
-| `middleware.ts` | 擋未登入的人進 `/admin` |
-| `lib/db/` | 資料庫連線與 schema |
-| `lib/seo/` | metadata、JSON-LD 共用函式 |
+| `app/(site)/` | 前台頁面（之後裝 GA4、頁首頁尾） |
+| `app/admin/` | 後台頁面（`noindex`、不裝 GA4） |
+| `app/api/` | Route Handlers；目前只有 `/api/health` |
+| `app/robots.ts`、`app/sitemap.ts` | S3 |
+| `proxy.ts` | 沒有 session cookie 的人擋出 `/admin`（Next.js 16 把 `middleware.ts` 改名為 `proxy.ts`） |
+| `lib/db.ts` | Prisma client（`@prisma/adapter-pg`） |
+| `lib/generated/prisma/` | `prisma generate` 產物，不進 git |
+| `prisma/schema.prisma` | 資料表定義，目前沒有任何 model |
+
+### 前台網址對照
+
+| 網址 | 頁面（見 `docs/site-architecture.md`） |
+|---|---|
+| `/` | 首頁 |
+| `/about` | 關於我們 |
+| `/about/license` | 營造業登記與資格 |
+| `/about/team` | 專業團隊 |
+| `/about/group` | 集團關係 |
+| `/services` | 承攬業務 |
+| `/projects`、`/projects/[slug]` | 工程實績列表、單案頁 |
+| `/safety-quality` | 工安與品質管理 |
+| `/contact` | 聯絡我們／工程洽詢 |
+| `/privacy` | 隱私權政策 |
+| `/news` | 最新消息 |
+| `/careers` | 人才招募 |
+| `/partners` | 協力廠商合作 |
+
+每頁目前只有 `<h1>` 佔位，畫面由另外的 AI 設計。
 
 ## 5. 資料表草稿
 
@@ -113,5 +135,5 @@ flowchart LR
 
 | 環境 | 跑在哪 | 資料庫 |
 |---|---|---|
-| 開發 | 本機 `docker compose`（Next.js + PostgreSQL 容器） | 本機 PostgreSQL |
-| 正式 | EC2 | RDS |
+| 開發 | 本機 `npm run dev`；PostgreSQL 用 `docker compose`（port 5434，5432／5433 本機已被占用） | 本機 PostgreSQL |
+| 正式 | EC2 上跑 `Dockerfile` 建的映像檔（standalone 輸出） | RDS |
