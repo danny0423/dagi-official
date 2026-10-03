@@ -1,8 +1,8 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/admin/guard";
+import { authorizeAction } from "@/lib/admin/guard";
 import { failure, success, type ActionState } from "@/lib/admin/action-state";
 import {
   CONTENT_KINDS,
@@ -17,7 +17,8 @@ import { isNotFound, parseId } from "@/lib/admin/validation";
 // kind 與 id 是從畫面 bind 進來的，可能被竄改，一律重新驗證。
 
 export async function togglePublished(kind: unknown, rawId: unknown): Promise<ActionState> {
-  await requireAdmin();
+  const auth = await authorizeAction();
+  if (!auth.ok) return auth.state;
   const id = parseId(rawId);
   if (!isContentKind(kind) || !id) return failure("參數錯誤");
 
@@ -40,7 +41,8 @@ export async function moveContent(
   rawId: unknown,
   direction: unknown,
 ): Promise<ActionState> {
-  await requireAdmin();
+  const auth = await authorizeAction();
+  if (!auth.ok) return auth.state;
   const id = parseId(rawId);
   if (!isContentKind(kind) || !id || (direction !== "up" && direction !== "down")) return failure("參數錯誤");
 
@@ -61,7 +63,8 @@ export async function moveContent(
 }
 
 export async function deleteContent(kind: unknown, rawId: unknown): Promise<ActionState> {
-  await requireAdmin();
+  const auth = await authorizeAction();
+  if (!auth.ok) return auth.state;
   const id = parseId(rawId);
   if (!isContentKind(kind) || !id) return failure("參數錯誤");
 
@@ -73,5 +76,5 @@ export async function deleteContent(kind: unknown, rawId: unknown): Promise<Acti
   }
   // 只刪內容本身；用到的圖片留在媒體庫，需要時再到媒體庫刪
   revalidateContent(kind);
-  redirect(`${CONTENT_KINDS[kind].adminPath}?notice=deleted`);
+  redirect(`${CONTENT_KINDS[kind].adminPath}?notice=deleted`, RedirectType.replace);
 }

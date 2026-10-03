@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/admin/guard";
+import { authorizeAction } from "@/lib/admin/guard";
 import { failure, success, type ActionState } from "@/lib/admin/action-state";
 import { formToObject, isForeignKeyViolation, isNotFound, parseId, validationFailure, zOptionalText } from "@/lib/admin/validation";
 import { getMediaUsage } from "@/lib/media";
@@ -14,7 +14,8 @@ import { getStorage } from "@/lib/storage";
 const altSchema = z.object({ alt: zOptionalText(300) });
 
 export async function updateMediaAlt(rawId: unknown, _prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireAdmin();
+  const auth = await authorizeAction();
+  if (!auth.ok) return auth.state;
   const id = parseId(rawId);
   if (!id) return failure("參數錯誤");
   const parsed = altSchema.safeParse(formToObject(formData));
@@ -31,7 +32,8 @@ export async function updateMediaAlt(rawId: unknown, _prev: ActionState, formDat
 }
 
 export async function deleteMedia(rawId: unknown): Promise<ActionState> {
-  await requireAdmin();
+  const auth = await authorizeAction();
+  if (!auth.ok) return auth.state;
   const id = parseId(rawId);
   if (!id) return failure("參數錯誤");
 

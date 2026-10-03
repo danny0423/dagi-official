@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/admin/guard";
@@ -52,6 +53,11 @@ export default async function UserDetailPage({ params, searchParams }: { params:
 
       <div className="adm-card">
         <h2>重設密碼</h2>
+        {isSelf && (
+          <p className="adm-hint mb-3">
+            這是你自己的帳號。改自己的密碼也可以到<Link href="/admin/account">我的帳號</Link>（需要輸入目前的密碼）。
+          </p>
+        )}
         <AdminForm action={resetUserPassword.bind(null, user.id)} submitLabel="重設密碼" resetOnSuccess>
           <div className="adm-form-grid">
             <TextField

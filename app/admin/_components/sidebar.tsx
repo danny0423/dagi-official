@@ -49,6 +49,8 @@ export function AdminSidebar({
         { href: "/admin/users", label: "帳號管理" },
       ],
     },
+    // 所有角色都有：看自己的資料、改自己的密碼
+    { title: "個人", items: [{ href: "/admin/account", label: "我的帳號" }] },
   ];
 
   const isActive = (href: string) =>
@@ -97,7 +99,11 @@ export function AdminSidebar({
           ))}
       </nav>
       <div className="adm-user">
-        <p>{user.name}</p>
+        <p>
+          <Link href="/admin/account" className="adm-user-name" onClick={() => setOpen(false)}>
+            {user.name}
+          </Link>
+        </p>
         <p className="adm-user-meta">
           {user.roleLabel}・{user.email}
         </p>

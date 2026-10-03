@@ -5,12 +5,19 @@ import { InquiryForm } from "@/components/inquiry-form";
 import { CompanyContact } from "@/components/company-contact";
 import { PlaceholderText } from "@/components/placeholder-text";
 import { company } from "@/lib/placeholder-company";
+import { requireLaunched } from "@/lib/launch";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = { title: "聯絡我們／工程洽詢" };
+export const metadata: Metadata = pageMetadata({
+  path: "/contact",
+  title: "聯絡我們／工程洽詢",
+  description: `向${company.name}提出工程洽詢：填寫工程地點、類型與預估規模，並查看公司地址與聯絡資訊。`,
+});
 
 export default function Page() {
+  requireLaunched("/contact");
   return <>
-    <PageHeading title="聯絡我們／工程洽詢" />
+    <PageHeading path="/contact" title="聯絡我們／工程洽詢" />
     <div className="site-container interior-content">
       <PageSection id="inquiry" title="洽詢表單"><InquiryForm kind="engineering" /></PageSection>
       <PageSection id="company-location" title="公司資訊與地圖">

@@ -2,12 +2,20 @@ import type { Metadata } from "next";
 import { PageHeading } from "@/components/page-heading";
 import { PageSection } from "@/components/page-section";
 import { PlaceholderText } from "@/components/placeholder-text";
+import { requireLaunched } from "@/lib/launch";
+import { company } from "@/lib/placeholder-company";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = { title: "人才招募" };
+export const metadata: Metadata = pageMetadata({
+  path: "/careers",
+  title: "人才招募",
+  description: `${company.name}人才招募：招募職缺、資格條件與福利。`,
+});
 
 export default function Page() {
+  requireLaunched("/careers");
   return <>
-    <PageHeading title="人才招募" />
+    <PageHeading path="/careers" title="人才招募" />
     <div className="site-container interior-content">
       <PageSection id="open-positions" title="招募職缺">
         <article className="job-opening">

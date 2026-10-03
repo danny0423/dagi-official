@@ -3,12 +3,20 @@ import { AboutNavigation, PageHeading } from "@/components/page-heading";
 import { PageSection } from "@/components/page-section";
 import { PhotoPlaceholder } from "@/components/photo-placeholder";
 import { PlaceholderText } from "@/components/placeholder-text";
+import { requireLaunched } from "@/lib/launch";
+import { company } from "@/lib/placeholder-company";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = { title: "專業團隊" };
+export const metadata: Metadata = pageMetadata({
+  path: "/about/team",
+  title: "專業團隊",
+  description: `${company.name}的專任工程人員、工地主任等核心技術人員介紹與資格。`,
+});
 
 export default function Page() {
+  requireLaunched("/about/team");
   return <>
-    <PageHeading title="專業團隊" parent={{ href: "/about", label: "關於我們" }} />
+    <PageHeading path="/about/team" title="專業團隊" parent={{ href: "/about", label: "關於我們" }} />
     <AboutNavigation current="/about/team" />
     <div className="site-container interior-content">
       <section aria-labelledby="team-members" className="team-section">

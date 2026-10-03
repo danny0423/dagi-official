@@ -1,10 +1,10 @@
 import "server-only";
 
-// Route Handler 共用的請求工具
+// Route Handler 與 server action 共用的請求工具
 
 // 取用戶端 IP。正式環境在 Nginx 後面，要讓 Nginx 設定 X-Forwarded-For／X-Real-IP；
 // 沒有反向代理時這兩個標頭可被偽造，只拿來做頻率限制與紀錄，不當作身分依據。
-export function getClientIp(headers: Headers): string {
+export function getClientIp(headers: Pick<Headers, "get">): string {
   const forwarded = headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0]!.trim().slice(0, 100);
   return headers.get("x-real-ip")?.trim().slice(0, 100) || "unknown";

@@ -1,14 +1,25 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { JsonLd } from "@/components/json-ld";
 import { PlaceholderText } from "@/components/placeholder-text";
+import { breadcrumbJsonLd } from "@/lib/seo/json-ld";
 
-export function PageHeading({ title, parent, children }: {
+// 內頁標題區：畫面上的麵包屑，同時輸出相同路徑的 BreadcrumbList 結構化資料。
+export function PageHeading({ path, title, parent, children }: {
+  /** 本頁網址路徑，給 BreadcrumbList 使用 */
+  path: string;
   title: string;
   parent?: { href: string; label: string };
   children?: ReactNode;
 }) {
+  const breadcrumbs = [
+    { name: "首頁", path: "/" },
+    ...(parent ? [{ name: parent.label, path: parent.href }] : []),
+    { name: title, path },
+  ];
   return (
     <header className="page-heading concrete">
+      <JsonLd data={breadcrumbJsonLd(breadcrumbs)} />
       <div className="site-container">
         <nav aria-label="麵包屑" className="breadcrumbs">
           <ol>

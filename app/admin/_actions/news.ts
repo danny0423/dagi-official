@@ -1,11 +1,11 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import * as z from "zod";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/admin/guard";
+import { authorizeAction } from "@/lib/admin/guard";
 import { failure, success, type ActionState } from "@/lib/admin/action-state";
-import { revalidateContent, topSortOrder } from "@/lib/admin/content";
+import { revalidateContent, slugConflict, slugRaceFailure, topSortOrder } from "@/lib/admin/content";
 import {
   formToObject,
   isForeignKeyViolation,
@@ -16,32 +16,40 @@ import {
   zCheckbox,
   zDate,
   zOptionalId,
+  zOptionalSlug,
   zOptionalText,
-  zSlug,
   zText,
+  withSlugFromTitle,
 } from "@/lib/admin/validation";
 
-const newsSchema = z.object({
-  title: zText("標題", 200),
-  slug: zSlug,
-  summary: zOptionalText(500),
-  content: zText("內文", 50000),
-  publishedAt: zDate("日期"),
-  coverImageId: zOptionalId,
-  published: zCheckbox,
-});
+// 網址代稱留空時依標題產生（withSlugFromTitle）；重複時回欄位錯誤並建議加上 -2 之類的後綴
+const newsSchema = withSlugFromTitle(
+  z.object({
+    title: zText("標題", 200),
+    slug: zOptionalSlug,
+    summary: zOptionalText(500),
+    content: zText("內文", 50000),
+    publishedAt: zDate("日期"),
+    coverImageId: zOptionalId,
+    published: zCheckbox,
+  }),
+);
 
-function saveError(error: unknown): ActionState {
-  if (isUniqueViolation(error)) return failure("請修正標示的欄位", { slug: ["這個網址代稱已被使用"] });
+// 存檔失敗的已知原因轉成畫面訊息。唯一索引衝突：送出前已查過代稱，這裡是兩人同時送出同一個代稱的競態
+async function saveError(error: unknown, slug: string, excludeId?: number): Promise<ActionState> {
+  if (isUniqueViolation(error)) return slugRaceFailure("news", slug, excludeId);
   if (isForeignKeyViolation(error)) return failure("選擇的圖片已不存在，請重新選擇");
   if (isNotFound(error)) return failure("找不到這筆資料，可能已被刪除");
   throw error;
 }
 
 export async function createNews(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireAdmin();
+  const auth = await authorizeAction();
+  if (!auth.ok) return auth.state;
   const parsed = newsSchema.safeParse(formToObject(formData));
   if (!parsed.success) return validationFailure(parsed.error);
+  const conflict = await slugConflict("news", parsed.data.slug);
+  if (conflict) return conflict;
 
   let id: number;
   try {
@@ -51,23 +59,26 @@ export async function createNews(_prev: ActionState, formData: FormData): Promis
     });
     id = created.id;
   } catch (error) {
-    return saveError(error);
+    return saveError(error, parsed.data.slug);
   }
   revalidateContent("news");
-  redirect(`/admin/news/${id}?notice=created`);
+  redirect(`/admin/news/${id}?notice=created`, RedirectType.replace);
 }
 
 export async function updateNews(rawId: unknown, _prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireAdmin();
+  const auth = await authorizeAction();
+  if (!auth.ok) return auth.state;
   const id = parseId(rawId);
   if (!id) return failure("參數錯誤");
   const parsed = newsSchema.safeParse(formToObject(formData));
   if (!parsed.success) return validationFailure(parsed.error);
+  const conflict = await slugConflict("news", parsed.data.slug, id);
+  if (conflict) return conflict;
 
   try {
     await prisma.news.update({ where: { id }, data: parsed.data });
   } catch (error) {
-    return saveError(error);
+    return saveError(error, parsed.data.slug, id);
   }
   revalidateContent("news");
   return success("已儲存");

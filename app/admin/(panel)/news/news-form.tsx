@@ -1,4 +1,4 @@
-import { AdminForm, CheckboxField, TextAreaField, TextField, type FormAction } from "@/app/admin/_components/form";
+import { AdminForm, CheckboxField, SlugField, TextAreaField, TextField, type FormAction } from "@/app/admin/_components/form";
 import { ImagePicker } from "@/app/admin/_components/image-picker";
 import { formatDate, todayInTaipei } from "@/lib/admin/format";
 import type { MediaDTO } from "@/lib/media-types";
@@ -18,13 +18,12 @@ export function NewsForm({ action, initial, submitLabel }: { action: FormAction;
     <AdminForm action={action} submitLabel={submitLabel}>
       <div className="adm-form-grid">
         <TextField label="標題" name="title" defaultValue={initial?.title} required maxLength={200} wide />
-        <TextField
-          label="網址代稱"
-          name="slug"
+        <SlugField
+          sourceLabel="標題"
+          pathPrefix="/news/"
+          example="公司成立公告"
           defaultValue={initial?.slug}
-          required
-          maxLength={100}
-          hint="只能用英文小寫、數字與連字號，例如 2026-10-company-founded"
+          note="消息內頁上線後就是這個網址；已上架的消息改了代稱，舊網址會失效。"
         />
         <TextField
           label="日期"

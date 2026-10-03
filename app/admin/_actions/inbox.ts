@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import * as z from "zod";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/admin/guard";
+import { authorizeAction } from "@/lib/admin/guard";
 import { failure, success, type ActionState } from "@/lib/admin/action-state";
 import { formToObject, isNotFound, parseId, validationFailure, zOptionalText } from "@/lib/admin/validation";
+import { inboxFilterQuery, parseInboxFilterQuery } from "@/lib/admin/inbox";
 
 // 收件匣（工程洽詢、協力廠商）：ADMIN 與 EDITOR 都可以處理
 
@@ -36,7 +37,8 @@ export async function updateInboxItem(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireAdmin();
+  const auth = await authorizeAction();
+  if (!auth.ok) return auth.state;
   const id = parseId(rawId);
   if (!isInboxKind(kind) || !id) return failure("參數錯誤");
   const parsed = inboxSchema.safeParse(formToObject(formData));
@@ -53,8 +55,10 @@ export async function updateInboxItem(
   return success("已更新處理狀態");
 }
 
-export async function deleteInboxItem(kind: unknown, rawId: unknown): Promise<ActionState> {
-  await requireAdmin();
+// returnQuery：詳細頁目前的列表篩選（例：?status=NEW&page=2），刪除後回到同一個篩選
+export async function deleteInboxItem(kind: unknown, rawId: unknown, returnQuery?: unknown): Promise<ActionState> {
+  const auth = await authorizeAction();
+  if (!auth.ok) return auth.state;
   const id = parseId(rawId);
   if (!isInboxKind(kind) || !id) return failure("參數錯誤");
 
@@ -66,5 +70,6 @@ export async function deleteInboxItem(kind: unknown, rawId: unknown): Promise<Ac
     throw error;
   }
   revalidateInbox();
-  redirect(`${INBOX[kind].path}?notice=deleted`);
+  const filter = parseInboxFilterQuery(returnQuery);
+  redirect(`${INBOX[kind].path}${inboxFilterQuery(filter, { notice: "deleted" })}`, RedirectType.replace);
 }

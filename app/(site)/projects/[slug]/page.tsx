@@ -5,18 +5,30 @@ import { PageHeading } from "@/components/page-heading";
 import { PageSection } from "@/components/page-section";
 import { PhotoPlaceholder } from "@/components/photo-placeholder";
 import { PlaceholderText } from "@/components/placeholder-text";
+import { requireLaunched } from "@/lib/launch";
 import { sampleProject } from "@/lib/placeholder-project";
+import { notFoundMetadata, pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = {
-  title: "【待填：工程名稱】｜範例專案",
-  robots: { index: false, follow: true },
-};
+// 範例專案只供版型預覽，即使 /projects 開放了也不收錄。
+// 找不到的工程網址會顯示 404，標題也要是 404 的，不能套用範例專案的標題。
+export async function generateMetadata({ params }: PageProps<"/projects/[slug]">): Promise<Metadata> {
+  const { slug } = await params;
+  if (slug !== sampleProject.slug) return notFoundMetadata;
+  const metadata = pageMetadata({
+    path: `/projects/${sampleProject.slug}`,
+    title: "【待填：工程名稱】｜範例專案",
+    description: "工程實績單案介紹：工程概況、施工重點與工程照片。",
+  });
+  return metadata === notFoundMetadata ? metadata : { ...metadata, robots: { index: false, follow: true } };
+}
 
 export default async function Page({ params }: PageProps<"/projects/[slug]">) {
+  requireLaunched("/projects");
   const { slug } = await params;
+  // 找不到的工程網址交給 app/not-found.tsx（中文 404，含頁首頁尾）
   if (slug !== sampleProject.slug) notFound();
   return <>
-    <PageHeading title={sampleProject.name} parent={{ href: "/projects", label: "工程實績" }}><p><PlaceholderText text={sampleProject.notice} /></p></PageHeading>
+    <PageHeading path={`/projects/${slug}`} title={sampleProject.name} parent={{ href: "/projects", label: "工程實績" }}><p><PlaceholderText text={sampleProject.notice} /></p></PageHeading>
     <div className="site-container interior-content">
       <PageSection id="project-overview" title="工程概況">
         <dl className="detail-list project-facts">

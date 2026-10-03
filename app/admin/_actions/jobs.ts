@@ -1,9 +1,9 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import * as z from "zod";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/admin/guard";
+import { authorizeAction } from "@/lib/admin/guard";
 import { failure, success, type ActionState } from "@/lib/admin/action-state";
 import { revalidateContent, topSortOrder } from "@/lib/admin/content";
 import {
@@ -29,7 +29,8 @@ const jobSchema = z.object({
 });
 
 export async function createJob(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireAdmin();
+  const auth = await authorizeAction();
+  if (!auth.ok) return auth.state;
   const parsed = jobSchema.safeParse(formToObject(formData));
   if (!parsed.success) return validationFailure(parsed.error);
 
@@ -38,11 +39,12 @@ export async function createJob(_prev: ActionState, formData: FormData): Promise
     select: { id: true },
   });
   revalidateContent("jobs");
-  redirect(`/admin/jobs/${created.id}?notice=created`);
+  redirect(`/admin/jobs/${created.id}?notice=created`, RedirectType.replace);
 }
 
 export async function updateJob(rawId: unknown, _prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireAdmin();
+  const auth = await authorizeAction();
+  if (!auth.ok) return auth.state;
   const id = parseId(rawId);
   if (!id) return failure("參數錯誤");
   const parsed = jobSchema.safeParse(formToObject(formData));

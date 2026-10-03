@@ -1,14 +1,38 @@
 import Link from "next/link";
 import { AdminForm, SelectField, TextAreaField, type FormAction } from "@/app/admin/_components/form";
 import { inboxStatusLabel } from "@/lib/admin/format";
+import { INBOX_STATUSES, parseInboxStatus, type InboxStatus } from "@/lib/admin/inbox";
 
-// 收件匣（工程洽詢、協力廠商）共用元件
+// 收件匣（工程洽詢、協力廠商）共用元件。狀態與篩選的解析在 lib/admin/inbox.ts（server action 也要用）。
 
-export type InboxStatus = keyof typeof inboxStatusLabel;
-export const INBOX_STATUSES = Object.keys(inboxStatusLabel) as InboxStatus[];
+export { INBOX_STATUSES, parseInboxStatus, type InboxStatus } from "@/lib/admin/inbox";
 
-export function parseInboxStatus(value: unknown): InboxStatus | undefined {
-  return typeof value === "string" && (INBOX_STATUSES as string[]).includes(value) ? (value as InboxStatus) : undefined;
+// 電話 → tel: 連結（只留數字、+、#、*、逗號、分號）；整理後沒有數字就不做連結
+export function telHref(phone: string | null | undefined): string | null {
+  const cleaned = phone?.replace(/[^\d+#*,;]/g, "") ?? "";
+  return /\d/.test(cleaned) ? `tel:${cleaned}` : null;
+}
+
+// Email → mailto: 連結；資料是前台訪客填的，格式不像 Email（或含 ?、& 這類會被當成參數的字元）就不做連結
+export function mailtoHref(email: string | null | undefined): string | null {
+  const value = email?.trim() ?? "";
+  return /^[^\s@?&#,;<>"]+@[^\s@?&#,;<>"]+\.[^\s@?&#,;<>"]+$/.test(value) ? `mailto:${value}` : null;
+}
+
+// 收件匣詳細頁的一個欄位：電話、Email 可以直接點
+export type InboxField = { label: string; value: string | null; href?: string | null };
+
+export function InboxFields({ fields }: { fields: InboxField[] }) {
+  return (
+    <dl className="adm-dl">
+      {fields.map(({ label, value, href }) => (
+        <div key={label} className="contents">
+          <dt>{label}</dt>
+          <dd>{!value ? "—" : href ? <a href={href}>{value}</a> : value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 }
 
 export function InboxStatusBadge({ status }: { status: InboxStatus }) {

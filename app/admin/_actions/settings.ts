@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
 import { prisma } from "@/lib/db";
-import { requireRole } from "@/lib/admin/guard";
+import { authorizeAction } from "@/lib/admin/guard";
 import { success, type ActionState } from "@/lib/admin/action-state";
 import {
   formToObject,
@@ -40,7 +40,8 @@ const settingsSchema = z.object({
 });
 
 export async function updateCompanySettings(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireRole("ADMIN");
+  const auth = await authorizeAction("ADMIN");
+  if (!auth.ok) return auth.state;
   const parsed = settingsSchema.safeParse(formToObject(formData));
   if (!parsed.success) return validationFailure(parsed.error);
 

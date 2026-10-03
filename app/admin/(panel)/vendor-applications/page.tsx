@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin/guard";
 import { formatDateTime } from "@/lib/admin/format";
-import { countByStatus, InboxStatusBadge, InboxTabs, parseInboxStatus } from "@/app/admin/_components/inbox";
+import { inboxFilterQuery, outOfRangePage, parseInboxFilter } from "@/lib/admin/inbox";
+import { countByStatus, InboxStatusBadge, InboxTabs } from "@/app/admin/_components/inbox";
 import { EmptyState, Notice, PageHeader, Pager, type SearchParams } from "@/app/admin/_components/page-parts";
 
 export const metadata: Metadata = { title: "協力廠商登記" };
@@ -13,8 +15,8 @@ const PAGE_SIZE = 50;
 export default async function VendorApplicationsPage({ searchParams }: { searchParams: SearchParams }) {
   await requireAdmin();
   const sp = await searchParams;
-  const status = parseInboxStatus(sp.status);
-  const page = Math.max(1, Number(sp.page) || 1);
+  const filter = parseInboxFilter(sp);
+  const { status, page } = filter;
   const where = status ? { status } : {};
 
   const [rows, total, grouped] = await Promise.all([
@@ -28,8 +30,15 @@ export default async function VendorApplicationsPage({ searchParams }: { searchP
     prisma.vendorApplication.count({ where }),
     prisma.vendorApplication.groupBy({ by: ["status"], _count: { _all: true } }),
   ]);
-  const query = (p: number) =>
-    `/admin/vendor-applications?${new URLSearchParams({ ...(status ? { status } : {}), page: String(p) })}`;
+  // 頁碼超出範圍（例如刪掉最後一頁的最後一筆）：改到最後一頁，一次性提示（?notice=）照常帶過去
+  const lastPage = outOfRangePage(page, total, PAGE_SIZE);
+  if (lastPage) {
+    const notice = typeof sp.notice === "string" ? { notice: sp.notice } : undefined;
+    redirect(`/admin/vendor-applications${inboxFilterQuery({ status, page: lastPage }, notice)}`);
+  }
+  const query = (p: number) => `/admin/vendor-applications${inboxFilterQuery({ status, page: p })}`;
+  // 詳細頁帶著目前的篩選，返回列表時回到同一個篩選與頁碼
+  const detailHref = (id: number) => `/admin/vendor-applications/${id}${inboxFilterQuery(filter)}`;
 
   return (
     <div className="adm-page">
@@ -53,20 +62,24 @@ export default async function VendorApplicationsPage({ searchParams }: { searchP
             <tbody>
               {rows.map((row) => (
                 <tr key={row.id}>
-                  <td>{formatDateTime(row.createdAt)}</td>
-                  <td className="adm-cell-title">
-                    {row.companyName}
+                  <td data-label="收到時間">{formatDateTime(row.createdAt)}</td>
+                  <td className="adm-cell-title" data-label="廠商／聯絡人">
+                    <Link href={detailHref(row.id)}>{row.companyName}</Link>
                     <span className="adm-sub">{row.contactName}</span>
                   </td>
-                  <td>
+                  <td data-label="工種／服務區域">
                     {row.trade ?? "—"}
                     {row.serviceArea && <span className="adm-sub">{row.serviceArea}</span>}
                   </td>
-                  <td>
+                  <td data-label="狀態">
                     <InboxStatusBadge status={row.status} />
                   </td>
-                  <td>
-                    <Link href={`/admin/vendor-applications/${row.id}`} className="adm-btn adm-btn-sm">
+                  <td className="adm-cell-actions" data-label="操作">
+                    <Link
+                      href={detailHref(row.id)}
+                      className="adm-btn adm-btn-sm"
+                      aria-label={`查看「${row.companyName}」的登記資料`}
+                    >
                       查看
                     </Link>
                   </td>

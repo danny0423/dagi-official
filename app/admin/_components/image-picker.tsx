@@ -1,13 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import { useFieldError } from "@/app/admin/_components/form";
+import { fieldAnchor, useFieldError, useNotifyFormChange } from "@/app/admin/_components/form";
 import { UPLOAD_ACCEPT, UPLOAD_MAX_BYTES, type MediaDTO } from "@/lib/media-types";
 
 // 圖片欄位：從媒體庫挑選，或直接上傳（上傳後自動選取）。
 // 這些元件會放在 AdminForm 的 <form> 裡，所以對話框內不能再放 <form>，按鈕一律 type="button"。
+// 選取結果存在 hidden input，改變時要通知 AdminForm 重新判斷有沒有未存檔（hidden input 不會觸發 change 事件）。
 
 const ALLOWED = UPLOAD_ACCEPT.split(",");
 
@@ -19,7 +20,8 @@ export async function uploadImage(file: File, alt = ""): Promise<MediaDTO> {
   body.append("alt", alt);
   const response = await fetch("/api/admin/media", { method: "POST", body });
   const data = (await response.json().catch(() => null)) as { ok?: boolean; message?: string; media?: MediaDTO } | null;
-  if (response.status === 401) throw new Error("登入已過期，請重新登入");
+  // 表單上傳時登入過期：只顯示在圖片欄位，表單其他內容不受影響
+  if (response.status === 401) throw new Error("登入已過期，請在新分頁開啟 /admin/login 重新登入後再上傳");
   if (!response.ok || !data?.ok || !data.media) throw new Error(data?.message ?? "上傳失敗，請稍後再試");
   return data.media;
 }
@@ -155,10 +157,17 @@ export function ImagePicker({
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const fieldError = useFieldError(name);
+  const notifyChange = useNotifyFormChange();
+  const buttonId = useId();
   const browser = useMediaBrowser((media) => {
     setSelected(media);
     setError("");
   });
+
+  // hidden input 的值在 render 後才更新，所以在 effect 裡通知
+  useEffect(() => {
+    notifyChange();
+  }, [selected, notifyChange]);
 
   async function onFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -176,7 +185,7 @@ export function ImagePicker({
   }
 
   return (
-    <div className="adm-field adm-span-2">
+    <div className="adm-field adm-span-2" {...fieldAnchor(name, label, buttonId)}>
       <span className="adm-label">{label}</span>
       <div className="adm-picker">
         <div className="adm-picker-preview">
@@ -184,7 +193,7 @@ export function ImagePicker({
         </div>
         <div className="flex flex-col gap-2">
           <div className="adm-actions">
-            <button type="button" className="adm-btn adm-btn-sm" onClick={browser.open}>
+            <button id={buttonId} type="button" className="adm-btn adm-btn-sm" onClick={browser.open}>
               從媒體庫選擇
             </button>
             <button
@@ -224,9 +233,16 @@ export function GalleryPicker({ name, label, initial }: { name: string; label: s
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const fieldError = useFieldError(name);
+  const notifyChange = useNotifyFormChange();
+  const buttonId = useId();
   const browser = useMediaBrowser((media) => {
     setItems((previous) => (previous.some((m) => m.id === media.id) ? previous : [...previous, media]));
   });
+
+  useEffect(() => {
+    notifyChange();
+  }, [items, notifyChange]);
 
   function move(index: number, delta: number) {
     setItems((previous) => {
@@ -258,7 +274,7 @@ export function GalleryPicker({ name, label, initial }: { name: string; label: s
   }
 
   return (
-    <div className="adm-field adm-span-2">
+    <div className="adm-field adm-span-2" {...fieldAnchor(name, label, buttonId)}>
       <span className="adm-label">{label}</span>
       {items.length === 0 ? (
         <p className="adm-hint">尚未加入圖片</p>
@@ -300,7 +316,7 @@ export function GalleryPicker({ name, label, initial }: { name: string; label: s
         </ol>
       )}
       <div className="adm-actions">
-        <button type="button" className="adm-btn adm-btn-sm" onClick={browser.open}>
+        <button id={buttonId} type="button" className="adm-btn adm-btn-sm" onClick={browser.open}>
           從媒體庫加入
         </button>
         <button
@@ -313,6 +329,7 @@ export function GalleryPicker({ name, label, initial }: { name: string; label: s
         </button>
       </div>
       {error && <p className="adm-error" role="alert">{error}</p>}
+      {fieldError && <p className="adm-error">{fieldError}</p>}
       <input ref={fileRef} type="file" accept={UPLOAD_ACCEPT} multiple hidden onChange={onFiles} />
       {browser.dialog}
     </div>

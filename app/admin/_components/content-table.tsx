@@ -5,7 +5,8 @@ import { EmptyState, PublishedBadge } from "@/app/admin/_components/page-parts";
 import { deleteContent, moveContent, togglePublished } from "@/app/admin/_actions/content";
 import { CONTENT_KINDS, type ContentKind } from "@/lib/admin/content";
 
-// 五種內容共用的列表：自訂欄位＋上下架、上移／下移、編輯、刪除
+// 五種內容共用的列表：自訂欄位＋上下架、上移／下移、編輯、刪除。
+// 每格都帶 data-label：手機寬度（admin.css 900px 以下）表格改成一筆一張卡片，用它當欄位名稱。
 export type Column<T> = { header: string; cell: (row: T) => ReactNode; className?: string };
 
 export function ContentTable<T extends { id: number; published: boolean }>({
@@ -44,20 +45,21 @@ export function ContentTable<T extends { id: number; published: boolean }>({
           {rows.map((row, index) => (
             <tr key={row.id}>
               {columns.map((column) => (
-                <td key={column.header} className={column.className}>
+                <td key={column.header} className={column.className} data-label={column.header}>
                   {column.cell(row)}
                 </td>
               ))}
-              <td>
+              <td data-label="上架">
                 <div className="adm-actions">
                   <PublishedBadge published={row.published} />
                   <ActionButton
                     action={togglePublished.bind(null, kind, row.id)}
                     label={row.published ? "下架" : "上架"}
+                    ariaLabel={`「${titleOf(row)}」${row.published ? "下架" : "上架"}`}
                   />
                 </div>
               </td>
-              <td>
+              <td data-label="排序">
                 <div className="adm-actions flex-nowrap">
                   <ActionButton
                     action={moveContent.bind(null, kind, row.id, "up")}
@@ -73,14 +75,15 @@ export function ContentTable<T extends { id: number; published: boolean }>({
                   />
                 </div>
               </td>
-              <td className="adm-cell-actions">
+              <td className="adm-cell-actions" data-label="操作">
                 <div className="adm-actions flex-nowrap">
-                  <Link href={`${basePath}/${row.id}`} className="adm-btn adm-btn-sm">
+                  <Link href={`${basePath}/${row.id}`} className="adm-btn adm-btn-sm" aria-label={`編輯「${titleOf(row)}」`}>
                     編輯
                   </Link>
                   <ActionButton
                     action={deleteContent.bind(null, kind, row.id)}
                     label="刪除"
+                    ariaLabel={`刪除「${titleOf(row)}」`}
                     variant="danger"
                     confirmMessage={`確定要刪除${label}「${titleOf(row)}」？刪除後無法復原。`}
                   />

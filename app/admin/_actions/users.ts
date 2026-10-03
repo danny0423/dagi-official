@@ -1,33 +1,26 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import * as z from "zod";
 import { prisma } from "@/lib/db";
-import { requireRole } from "@/lib/admin/guard";
-import { destroyUserSessions, getCurrentSession } from "@/lib/admin/session";
+import { authorizeAction } from "@/lib/admin/guard";
+import { destroyUserSessions } from "@/lib/admin/session";
 import { failure, success, type ActionState } from "@/lib/admin/action-state";
 import {
   formToObject,
   isUniqueViolation,
+  passwordPair,
   parseId,
   validationFailure,
   zEmail,
   zText,
 } from "@/lib/admin/validation";
-import { hashPassword, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/password";
+import { hashPassword } from "@/lib/password";
 
 // 帳號管理：只有 ADMIN 能用。不能停用自己、不能改自己的角色，且至少要留一個啟用中的 ADMIN。
 
 const zRole = z.enum(["ADMIN", "EDITOR"], { error: "請選擇角色" });
-const zPassword = z
-  .string({ error: "請輸入密碼" })
-  .min(PASSWORD_MIN_LENGTH, `密碼至少 ${PASSWORD_MIN_LENGTH} 個字元`)
-  .max(PASSWORD_MAX_LENGTH, `密碼最多 ${PASSWORD_MAX_LENGTH} 個字元`);
-
-const passwordPair = z
-  .object({ password: zPassword, passwordConfirm: z.string({ error: "請再輸入一次密碼" }) })
-  .refine((d) => d.password === d.passwordConfirm, { path: ["passwordConfirm"], message: "兩次輸入的密碼不一致" });
 
 const createSchema = z
   .object({ email: zEmail, name: zText("名稱", 100), role: zRole })
@@ -47,7 +40,8 @@ function revalidateUsers() {
 }
 
 export async function createUser(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireRole("ADMIN");
+  const auth = await authorizeAction("ADMIN");
+  if (!auth.ok) return auth.state;
   const parsed = createSchema.safeParse(formToObject(formData));
   if (!parsed.success) return validationFailure(parsed.error);
   const { email, name, role, password } = parsed.data;
@@ -64,11 +58,13 @@ export async function createUser(_prev: ActionState, formData: FormData): Promis
     throw error;
   }
   revalidateUsers();
-  redirect(`/admin/users/${id}?notice=created`);
+  redirect(`/admin/users/${id}?notice=created`, RedirectType.replace);
 }
 
 export async function updateUser(rawId: unknown, _prev: ActionState, formData: FormData): Promise<ActionState> {
-  const me = await requireRole("ADMIN");
+  const auth = await authorizeAction("ADMIN");
+  if (!auth.ok) return auth.state;
+  const me = auth.user;
   const id = parseId(rawId);
   if (!id) return failure("參數錯誤");
   const parsed = updateSchema.safeParse(formToObject(formData));
@@ -89,7 +85,9 @@ export async function updateUser(rawId: unknown, _prev: ActionState, formData: F
 }
 
 export async function setUserActive(rawId: unknown, active: unknown): Promise<ActionState> {
-  const me = await requireRole("ADMIN");
+  const auth = await authorizeAction("ADMIN");
+  if (!auth.ok) return auth.state;
+  const me = auth.user;
   const id = parseId(rawId);
   if (!id || typeof active !== "boolean") return failure("參數錯誤");
   if (id === me.id && !active) return failure("不能停用自己的帳號");
@@ -108,7 +106,9 @@ export async function setUserActive(rawId: unknown, active: unknown): Promise<Ac
 }
 
 export async function resetUserPassword(rawId: unknown, _prev: ActionState, formData: FormData): Promise<ActionState> {
-  const me = await requireRole("ADMIN");
+  const auth = await authorizeAction("ADMIN");
+  if (!auth.ok) return auth.state;
+  const me = auth.user;
   const id = parseId(rawId);
   if (!id) return failure("參數錯誤");
   const parsed = passwordPair.safeParse(formToObject(formData));
@@ -122,8 +122,7 @@ export async function resetUserPassword(rawId: unknown, _prev: ActionState, form
     data: { passwordHash: await hashPassword(parsed.data.password) },
   });
   // 改密碼後該帳號其他裝置全部登出（自己改自己時保留目前這個 session）
-  const current = await getCurrentSession();
-  await destroyUserSessions(id, id === me.id ? current?.id : undefined);
+  await destroyUserSessions(id, id === me.id ? auth.sessionId : undefined);
   revalidateUsers();
   return success("已重設密碼，該帳號其他已登入的裝置都已登出");
 }

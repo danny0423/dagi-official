@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "check:launch": "tsx scripts/check-launch.ts",
+    "prebuild": "tsx scripts/check-launch.ts",
     "postinstall": "prisma generate",
     "db:up": "docker compose up -d db",
     "db:migrate": "prisma migrate dev",

@@ -48,6 +48,8 @@
 .site-shell p { margin: 0; }
 .site-container { width: min(100% - var(--spacing-site-gutter) * 2, var(--container-site)); margin-inline: auto; }
 .section-space { padding-block: var(--spacing-site-section); }
+/* 兩個同底色的區塊直接相鄰時（例如首頁「精選工程」因工程實績未開放而隱藏），只留一份間距。 */
+.site-container.section-space + .site-container.section-space { padding-top: 0; }
 .placeholder-label {
   background: var(--color-placeholder);
   color: var(--color-placeholder-ink);
@@ -337,6 +339,23 @@
 .company-info { font-style: normal; }
 .map-placeholder { display: grid; place-items: center; aspect-ratio: 16 / 9; padding: 2rem; text-align: center; font-size: 0.9375rem; }
 
+/* 未上線頁面預覽橫幅（只在開發環境出現，lib/launch.ts）：用施工警示斜紋，跟待填標記同色系。 */
+.launch-preview-banner { position: relative; z-index: 30; padding-bottom: 6px; background: var(--color-placeholder); color: var(--color-concrete-900); font-size: 0.9375rem; line-height: 1.6; }
+.launch-preview-banner::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: repeating-linear-gradient(-45deg, var(--color-concrete-900) 0 10px, var(--color-placeholder) 10px 20px); }
+.launch-preview-banner .site-container { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 1.25rem; padding-block: 0.875rem; }
+.launch-preview-banner strong { font-size: 1.0625rem; font-weight: 700; }
+.launch-preview-banner span { color: var(--color-placeholder-ink); }
+
+/* 中文 404（app/not-found.tsx）：沿用內頁清水模標題區與首頁服務卡。 */
+.not-found-hero { padding-block: clamp(3rem, 7vw, 6rem); background-color: var(--color-concrete-100); }
+.not-found-code { color: var(--color-concrete-600); font-size: var(--text-site-small); letter-spacing: 0.2em; font-variant-numeric: tabular-nums; }
+.not-found-hero h1 { margin-top: 1.25rem; font-size: var(--text-site-heading); line-height: 1.35; letter-spacing: -0.025em; }
+.not-found-description { padding-top: 1.25rem; max-width: 40rem; font-size: var(--text-site-lead); color: var(--color-concrete-600); text-wrap: pretty; }
+.not-found-links { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.5rem; }
+.not-found-links .service-card { display: block; height: 100%; }
+.not-found-link-title { font-size: clamp(1.25rem, 1.8vw, 1.625rem); font-weight: 700; line-height: 1.5; }
+.not-found-link-description { display: block; color: var(--color-concrete-600); }
+
 @media (max-width: 900px) {
   .interior-section, .service-detail { grid-template-columns: 1fr; gap: 2rem; }
   .interior-section > h2 { font-size: 2rem; }
@@ -364,6 +383,7 @@
   .radio-options { grid-template-columns: 1fr; }
   .form-actions { flex-wrap: wrap; }
   .map-placeholder { aspect-ratio: 4 / 3; }
+  .not-found-links { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

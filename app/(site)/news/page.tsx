@@ -1,12 +1,20 @@
 import type { Metadata } from "next";
 import { PageHeading } from "@/components/page-heading";
 import { PlaceholderText } from "@/components/placeholder-text";
+import { requireLaunched } from "@/lib/launch";
+import { company } from "@/lib/placeholder-company";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = { title: "最新消息" };
+export const metadata: Metadata = pageMetadata({
+  path: "/news",
+  title: "最新消息",
+  description: `${company.name}的最新消息與工程進度。`,
+});
 
 export default function Page() {
+  requireLaunched("/news");
   return <>
-    <PageHeading title="最新消息／工程進度" />
+    <PageHeading path="/news" title="最新消息／工程進度" />
     <section className="site-container interior-content" aria-labelledby="news-list-title">
       <h2 id="news-list-title" className="sr-only">文章列表</h2>
       <div className="news-list">

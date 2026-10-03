@@ -2,12 +2,20 @@ import type { Metadata } from "next";
 import { PageHeading } from "@/components/page-heading";
 import { PageSection } from "@/components/page-section";
 import { PlaceholderText } from "@/components/placeholder-text";
+import { requireLaunched } from "@/lib/launch";
+import { company } from "@/lib/placeholder-company";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = { title: "工安與品質管理" };
+export const metadata: Metadata = pageMetadata({
+  path: "/safety-quality",
+  title: "工安與品質管理",
+  description: `${company.name}的工安政策與品質管理制度，說明工地安全管理與施工品質檢查的做法。`,
+});
 
 export default function Page() {
+  requireLaunched("/safety-quality");
   return <>
-    <PageHeading title="工安與品質管理" />
+    <PageHeading path="/safety-quality" title="工安與品質管理" />
     <div className="site-container interior-content">
       <PageSection id="safety-policy" title="工安政策">
         <p className="interior-lead">我們相信沒有任何工期比人命重要。</p>

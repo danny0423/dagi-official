@@ -3,10 +3,17 @@ import { AboutNavigation, PageHeading } from "@/components/page-heading";
 import { PageSection } from "@/components/page-section";
 import { PlaceholderText } from "@/components/placeholder-text";
 import { company } from "@/lib/placeholder-company";
+import { requireLaunched } from "@/lib/launch";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = { title: "營造業登記與資格" };
+export const metadata: Metadata = pageMetadata({
+  path: "/about/license",
+  title: "營造業登記與資格",
+  description: `${company.name}的營造業登記資料、證照與認證，以及到主管機關查詢系統核對登記資料的方式，供招標機關與建商採購審查。`,
+});
 
 export default function Page() {
+  requireLaunched("/about/license");
   const rows = [
     ["公司名稱", company.name], ["統一編號", company.taxId],
     ["營造業類別與等級", `綜合營造業${company.grade}`],
@@ -14,7 +21,7 @@ export default function Page() {
     ["資本額", company.capital], ["負責人", company.representative],
   ];
   return <>
-    <PageHeading title="營造業登記與資格" parent={{ href: "/about", label: "關於我們" }} />
+    <PageHeading path="/about/license" title="營造業登記與資格" parent={{ href: "/about", label: "關於我們" }} />
     <AboutNavigation current="/about/license" />
     <div className="site-container interior-content">
       <PageSection id="registration" title="登記資料表">

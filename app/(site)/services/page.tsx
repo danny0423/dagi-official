@@ -3,12 +3,19 @@ import { PageHeading } from "@/components/page-heading";
 import { InquiryLink, PageSection } from "@/components/page-section";
 import { PlaceholderText } from "@/components/placeholder-text";
 import { company } from "@/lib/placeholder-company";
+import { requireLaunched } from "@/lib/launch";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = { title: "承攬業務" };
+export const metadata: Metadata = pageMetadata({
+  path: "/services",
+  title: "承攬業務",
+  description: `${company.shortName}承攬的工程類型、依營造業法的承攬範圍與合作流程，協助建設公司、起造人、招標機關與地主確認工程是否適合委託。`,
+});
 
 export default function Page() {
+  requireLaunched("/services");
   return <>
-    <PageHeading title="承攬業務" />
+    <PageHeading path="/services" title="承攬業務" />
     <div className="site-container interior-content">
       <section aria-labelledby="service-types" className="service-types-section">
         <h2 id="service-types" className="sr-only">業務項目</h2>

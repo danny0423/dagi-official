@@ -1,4 +1,12 @@
-import { AdminForm, CheckboxField, SelectField, TextAreaField, TextField, type FormAction } from "@/app/admin/_components/form";
+import {
+  AdminForm,
+  CheckboxField,
+  SelectField,
+  SlugField,
+  TextAreaField,
+  TextField,
+  type FormAction,
+} from "@/app/admin/_components/form";
 import { GalleryPicker, ImagePicker } from "@/app/admin/_components/image-picker";
 import { formatDate, projectStatusLabel } from "@/lib/admin/format";
 import type { MediaDTO } from "@/lib/media-types";
@@ -37,13 +45,12 @@ export function ProjectForm({
     <AdminForm action={action} submitLabel={submitLabel}>
       <div className="adm-form-grid">
         <TextField label="工程名稱" name="title" defaultValue={initial?.title} required maxLength={200} wide />
-        <TextField
-          label="網址代稱"
-          name="slug"
+        <SlugField
+          sourceLabel="工程名稱"
+          pathPrefix="/projects/"
+          example="台中辦公大樓新建工程"
           defaultValue={initial?.slug}
-          required
-          maxLength={100}
-          hint="前台網址 /projects/網址代稱；只能用英文小寫、數字與連字號，例如 taichung-office-2026"
+          note={initial ? "已上架的工程改了代稱，舊網址會失效。" : undefined}
         />
         <SelectField label="工程狀態" name="status" options={statusOptions} defaultValue={initial?.status ?? "IN_PROGRESS"} />
         <TextField label="類別" name="category" defaultValue={initial?.category} maxLength={100} hint="例：住宅、廠房、公共工程" />

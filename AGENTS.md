@@ -27,6 +27,8 @@
 - `.env` 不進 git，只 commit `.env.example`。
 - `assets/dagi素材/`（本機、不進 git）經檢視是 隆磐建設 舊官網素材，不是達吉的 logo 或工地照，不可用在網站上（`docs/assets-manifest.md`）；唯一例外是首頁主視覺暫用的一張氛圍照（D17），上線前要換掉。
 - `company.name` 是「達吉營造有限公司」，已含「營造」；需要短稱用 `company.shortName`，不要寫成 `${company.name}營造`。
+- 前台頁面是否開放由 `lib/launch.ts` 決定；新增前台頁要登記並在 page 開頭呼叫 `requireLaunched(path)`。開放前跑 `npm run check:launch` 看還有哪些【待填】；正式部署 build 時設 `LAUNCH_STRICT=1`。
+- 後台表單一律用 `app/admin/_components/form.tsx` 的 `AdminForm`（內建未存檔提醒、錯誤定位、登入過期不丟資料）；server action 開頭用 `authorizeAction()` 回傳狀態，不要 redirect。
 - 資料庫一開始沒有管理員帳號，要先跑 `npm run db:seed` 建立（指令見 `README.md`）。
 
 ## 文件

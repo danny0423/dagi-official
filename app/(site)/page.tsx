@@ -4,9 +4,15 @@ import { ArrowIcon } from "@/components/arrow-icon";
 import { CompanyContact } from "@/components/company-contact";
 import { PhotoPlaceholder } from "@/components/photo-placeholder";
 import { PlaceholderText } from "@/components/placeholder-text";
+import { isLaunched, requireLaunched } from "@/lib/launch";
 import { company } from "@/lib/placeholder-company";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = { title: { absolute: `${company.name}｜綜合營造業` } };
+export const metadata: Metadata = pageMetadata({
+  path: "/",
+  title: { absolute: `${company.name}｜綜合營造業` },
+  description: `${company.name}為綜合營造業，承攬民間建築、公共工程與危老重建營造。網站提供營造業登記資料、承攬業務說明與工程洽詢管道。`,
+});
 
 const services = [
   { title: "民間建築工程", description: "從開工到取得使用執照，配合建設公司的時程與品質要求。" },
@@ -21,6 +27,7 @@ const principles = [
 ];
 
 export default function Page() {
+  requireLaunched("/");
   return (
     <>
       <section className="home-hero concrete" aria-labelledby="hero-title">
@@ -34,8 +41,8 @@ export default function Page() {
               <Link href="/services" className="text-link" data-cta="hero-services">查看承攬業務<ArrowIcon diagonal /></Link>
             </div>
           </div>
-          {/* 暫用隆磐建設 2021 年工地照當氛圍照（D17），上線前換成達吉自家工地照 */}
-          <PhotoPlaceholder description="自家工地實景照片，不可用素材網的工地照" className="hero-photo" sizes="(max-width: 767px) 100vw, 45vw" photo={{ src: "/images/site/hero-temp-longpon.jpg", alt: "清水模基坑施工現場" }} />
+          {/* 暫用隆磐建設 2021 年工地照當氛圍照（D17），上線前換成達吉自家工地照。主視覺是首頁的 LCP 元素，用 lcp 優先載入。 */}
+          <PhotoPlaceholder description="自家工地實景照片，不可用素材網的工地照" className="hero-photo" sizes="(max-width: 767px) 100vw, 45vw" photo={{ src: "/images/site/hero-temp-longpon.jpg", alt: "清水模基坑施工現場" }} lcp />
         </div>
       </section>
 
@@ -59,8 +66,9 @@ export default function Page() {
         </div>
       </section>
 
-      {/* 設計預覽：上線方式尚未決定，保留明確標示的範例；若選方式 1，移除整區。 */}
-      <section className="project-section section-space" aria-labelledby="projects-title">
+      {/* 設計預覽：上線方式尚未決定，保留明確標示的範例；若選方式 1，移除整區。
+          工程實績頁（/projects）未開放時整區不顯示，避免連到 404（lib/launch.ts）。 */}
+      {isLaunched("/projects") && <section className="project-section section-space" aria-labelledby="projects-title">
         <div className="site-container">
           <div className="section-heading"><h2 id="projects-title">精選工程</h2><Link href="/projects" className="text-link">查看工程實績<ArrowIcon diagonal /></Link></div>
           <div className="featured-project">
@@ -76,7 +84,7 @@ export default function Page() {
             </div>
           </div>
         </div>
-      </section>
+      </section>}
 
       <section className="site-container section-space principles-section" aria-labelledby="principles-title">
         <h2 id="principles-title">為什麼<br className="desktop-break" />選我們</h2>

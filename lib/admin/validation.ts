@@ -1,7 +1,16 @@
 import "server-only";
 import * as z from "zod";
 import { Prisma } from "@/lib/generated/prisma/client";
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/password";
 import { failure, type FieldErrors } from "@/lib/admin/action-state";
+import {
+  normalizeSlugInput,
+  SLUG_MAX_LENGTH,
+  SLUG_PATTERN,
+  SLUG_RULE_TEXT,
+  slugify,
+  slugLength,
+} from "@/lib/admin/slug";
 
 // 後台表單的伺服器端驗證工具（zod）。FormData 的值一律當成不可信輸入。
 
@@ -48,13 +57,34 @@ export const zOptionalInt = (min: number, max: number) =>
       .nullable(),
   );
 
-export const zSlug = z
-  .string({ error: "請填寫網址代稱" })
-  .trim()
-  .toLowerCase()
-  .min(1, "請填寫網址代稱")
-  .max(100, "網址代稱最多 100 字")
-  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "只能用英文小寫、數字與連字號（-），例如 taichung-office-2026");
+// 網址代稱：選填，留空時由 withSlugFromTitle() 依標題產生（規則見 lib/admin/slug.ts）。
+// 只做全形轉半形與轉小寫，不偷偷改掉使用者打的符號；不合規則就回欄位錯誤（畫面離開欄位時已先整理過）。
+export const zOptionalSlug = z.preprocess(
+  (v) => (typeof v === "string" ? blankToNull(normalizeSlugInput(v)) : blankToNull(v)),
+  z
+    .string()
+    .refine((s) => slugLength(s) <= SLUG_MAX_LENGTH, `網址代稱最多 ${SLUG_MAX_LENGTH} 字`)
+    .refine((s) => SLUG_PATTERN.test(s), `${SLUG_RULE_TEXT}，例如 台中辦公大樓-2026`)
+    .nullable(),
+);
+
+// 搭配 zOptionalSlug：網址代稱留空時改用標題產生；標題轉不出任何可用字元時回欄位錯誤
+export function withSlugFromTitle<T extends { title: string; slug: string | null }>(schema: z.ZodType<T>) {
+  return schema
+    .transform((d) => ({ ...d, slug: d.slug ?? slugify(d.title) }))
+    .refine((d) => d.slug !== "", { path: ["slug"], message: "請填寫網址代稱（標題沒有可以轉成網址的文字）" });
+}
+
+// 密碼長度規則（新增帳號、重設密碼、我的帳號改密碼共用）
+export const zPassword = z
+  .string({ error: "請輸入密碼" })
+  .min(PASSWORD_MIN_LENGTH, `密碼至少 ${PASSWORD_MIN_LENGTH} 個字元`)
+  .max(PASSWORD_MAX_LENGTH, `密碼最多 ${PASSWORD_MAX_LENGTH} 個字元`);
+
+// 新密碼＋再輸入一次（欄位名稱 password、passwordConfirm）
+export const passwordPair = z
+  .object({ password: zPassword, passwordConfirm: z.string({ error: "請再輸入一次密碼" }) })
+  .refine((d) => d.password === d.passwordConfirm, { path: ["passwordConfirm"], message: "兩次輸入的密碼不一致" });
 
 export const zEmail = z.preprocess(
   (v) => (typeof v === "string" ? v.trim().toLowerCase() : v),

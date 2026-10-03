@@ -1,9 +1,9 @@
 "use server";
 
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import * as z from "zod";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/admin/guard";
+import { authorizeAction } from "@/lib/admin/guard";
 import { failure, success, type ActionState } from "@/lib/admin/action-state";
 import { revalidateContent, topSortOrder } from "@/lib/admin/content";
 import {
@@ -42,7 +42,8 @@ function saveError(error: unknown): ActionState {
 }
 
 export async function createCertification(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireAdmin();
+  const auth = await authorizeAction();
+  if (!auth.ok) return auth.state;
   const parsed = certificationSchema.safeParse(formToObject(formData));
   if (!parsed.success) return validationFailure(parsed.error);
 
@@ -57,7 +58,7 @@ export async function createCertification(_prev: ActionState, formData: FormData
     return saveError(error);
   }
   revalidateContent("certifications");
-  redirect(`/admin/certifications/${id}?notice=created`);
+  redirect(`/admin/certifications/${id}?notice=created`, RedirectType.replace);
 }
 
 export async function updateCertification(
@@ -65,7 +66,8 @@ export async function updateCertification(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireAdmin();
+  const auth = await authorizeAction();
+  if (!auth.ok) return auth.state;
   const id = parseId(rawId);
   if (!id) return failure("參數錯誤");
   const parsed = certificationSchema.safeParse(formToObject(formData));

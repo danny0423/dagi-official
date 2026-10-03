@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { PERMISSION_DENIED_MESSAGE } from "@/lib/admin/action-state";
 
 // 後台頁面共用的小元件（server component）
 
@@ -34,7 +35,7 @@ const NOTICES: Record<string, { text: string; tone: "ok" | "err" | "warn" }> = {
   created: { text: "已新增", tone: "ok" },
   deleted: { text: "已刪除", tone: "ok" },
   saved: { text: "已儲存", tone: "ok" },
-  denied: { text: "權限不足：這個功能只有管理員可以使用", tone: "err" },
+  denied: { text: PERMISSION_DENIED_MESSAGE, tone: "err" },
 };
 
 // 依網址參數 ?notice=xxx 顯示一次性的提示（新增後導頁、刪除後回列表時用）

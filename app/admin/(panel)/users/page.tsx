@@ -38,24 +38,26 @@ export default async function UsersPage({ searchParams }: { searchParams: Search
           <tbody>
             {users.map((user) => (
               <tr key={user.id}>
-                <td className="adm-cell-title">
-                  {user.name}
+                <td className="adm-cell-title" data-label="名稱">
+                  <Link href={`/admin/users/${user.id}`}>{user.name}</Link>
                   {user.id === me.id && <span className="adm-sub">（你自己）</span>}
                 </td>
-                <td>{user.email}</td>
-                <td>
+                <td data-label="Email" className="adm-cell-break">
+                  {user.email}
+                </td>
+                <td data-label="角色">
                   <span className={`adm-badge${user.role === "ADMIN" ? " adm-badge-steel" : ""}`}>{roleLabel[user.role]}</span>
                 </td>
-                <td>
+                <td data-label="狀態">
                   {user.isActive ? (
                     <span className="adm-badge adm-badge-ok">啟用</span>
                   ) : (
                     <span className="adm-badge adm-badge-err">停用</span>
                   )}
                 </td>
-                <td>{user.lastLoginAt ? formatDateTime(user.lastLoginAt) : "從未登入"}</td>
-                <td>
-                  <Link href={`/admin/users/${user.id}`} className="adm-btn adm-btn-sm">
+                <td data-label="最後登入">{user.lastLoginAt ? formatDateTime(user.lastLoginAt) : "從未登入"}</td>
+                <td className="adm-cell-actions" data-label="操作">
+                  <Link href={`/admin/users/${user.id}`} className="adm-btn adm-btn-sm" aria-label={`管理「${user.name}」的帳號`}>
                     管理
                   </Link>
                 </td>

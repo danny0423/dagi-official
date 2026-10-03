@@ -4,20 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 import { ArrowIcon } from "@/components/arrow-icon";
+import { isLaunched } from "@/lib/launch";
 
+// 未開放的頁面（lib/launch.ts）不放進選單。
 const links = [
   { href: "/services", label: "承攬業務" },
   { href: "/projects", label: "工程實績" },
   { href: "/safety-quality", label: "工安品質" },
   { href: "/news", label: "最新消息" },
   { href: "/contact", label: "聯絡我們" },
-];
+].filter(({ href }) => isLaunched(href));
 const aboutLinks = [
   { href: "/about", label: "關於我們" },
   { href: "/about/license", label: "營造業登記與資格" },
   { href: "/about/team", label: "專業團隊" },
   { href: "/about/group", label: "集團關係" },
-];
+].filter(({ href }) => isLaunched(href));
 
 export function SiteNavigation() {
   const [open, setOpen] = useState(false);

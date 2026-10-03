@@ -4,12 +4,19 @@ import { PageSection } from "@/components/page-section";
 import { PlaceholderText } from "@/components/placeholder-text";
 import { ArrowIcon } from "@/components/arrow-icon";
 import { company } from "@/lib/placeholder-company";
+import { requireLaunched } from "@/lib/launch";
+import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = { title: "集團關係" };
+export const metadata: Metadata = pageMetadata({
+  path: "/about/group",
+  title: "集團關係",
+  description: `說明${company.name}與隆磐建設的關係與分工，並提供隆磐建設官網連結。`,
+});
 
 export default function Page() {
+  requireLaunched("/about/group");
   return <>
-    <PageHeading title="集團關係" parent={{ href: "/about", label: "關於我們" }} />
+    <PageHeading path="/about/group" title="集團關係" parent={{ href: "/about", label: "關於我們" }} />
     <AboutNavigation current="/about/group" />
     <div className="site-container interior-content">
       <PageSection id="relationship" title="關係說明">
