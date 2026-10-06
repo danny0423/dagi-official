@@ -8,7 +8,7 @@
 | 2026-10-02 | 技術架構與需求、技術選型 D1～D13 | `docs/tech-architecture.md`、`docs/decisions.md`，commit `fb9d599` |
 | 2026-10-02 | Next.js 骨架：13 個前台佔位頁、`/admin`＋`proxy.ts`、`/api/health`、robots／sitemap、Prisma、docker compose、Dockerfile | commit `df05b86` |
 | 2026-10-02 | 骨架實測：全部前台頁 200、未登入進 `/admin` 307 導向登入頁、`/api/health` 回 `{"ok":true,"db":true}`、後台頁有 `noindex` | 本機 `npm run dev` 實測 |
-| 2026-10-06 | 前台改讀資料庫：`lib/site-data/`（公司資料、團隊、證照、工程實績、最新消息、職缺），`unstable_cache`＋標籤快取、`connection()` 讓 build 不連資料庫，後台存檔後 `updateTag` 立即更新；沒資料時維持待填範例；`check:launch` 改以資料庫為準，後台儀表板加「上線前檢查」。eslint／tsc 通過；`next build` 不連資料庫實測成功（standalone 288MB→88MB，排除素材與 .env）；瀏覽器實測 12 情境通過（正式模式＋dev），修 3 個 bug（多支電話 tel 連結、重複 key ×2） | `docs/tech-architecture.md` 第 5 節「前台資料流與快取」 |
+| 2026-10-06 | 前台改讀資料庫：`lib/site-data/`（公司資料、團隊、證照、工程實績、最新消息、職缺），`unstable_cache`＋標籤快取、`connection()` 讓 build 不連資料庫，後台存檔後 `updateTag` 立即更新；沒資料時維持待填範例；`check:launch` 改以資料庫為準，後台儀表板加「上線前檢查」。eslint／tsc 通過；`next build` 不連資料庫實測成功（standalone 283MB→88MB，排除素材與 .env）；瀏覽器實測 12 情境通過（正式模式＋dev），修 3 個 bug（多支電話 tel 連結、重複 key ×2） | `docs/tech-architecture.md` 第 5 節「前台資料流與快取」 |
 
 ## 下一步
 
