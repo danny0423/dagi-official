@@ -1,9 +1,10 @@
-import { company } from "@/lib/placeholder-company";
+// check-launch: skip-file（JSON-LD 空白欄位一律省略，不會輸出待填字樣，上線檢查不必掃這裡的 company.欄位）
+import type { SiteCompany } from "@/lib/site-data/company";
 import { siteUrl } from "@/lib/site";
 
 // JSON-LD 結構化資料（docs/tech-architecture.md S4）。
-// 只輸出已確認的欄位；值裡面還有全形方括號標記（待填、範例）的欄位一律省略，不輸出到搜尋引擎（AGENTS.md 內容鐵則）。
-// 電話、Email 等仍待填的欄位不放；補齊真實資料後再評估加入 telephone、email。
+// 公司資料來自資料庫（lib/site-data 的 getSiteCompany()）。只輸出已確認的欄位：
+// 資料庫空白時值會是【待填：…】，含全形方括號的欄位一律省略，不輸出到搜尋引擎（AGENTS.md 內容鐵則）。
 
 function confirmed(value: string | null | undefined): string | undefined {
   return value && !value.includes("【") ? value : undefined;
@@ -14,17 +15,22 @@ function absoluteUrl(path: string): string {
 }
 
 /** 全站共用：公司（綜合營造業）的基本資料。 */
-export function generalContractorJsonLd() {
+export function generalContractorJsonLd(company: SiteCompany) {
   const address = confirmed(company.address);
   return {
     "@context": "https://schema.org",
     "@type": "GeneralContractor",
     "@id": `${absoluteUrl("/")}#organization`,
     name: confirmed(company.name),
+    alternateName: confirmed(company.englishName),
     url: absoluteUrl("/"),
+    description: confirmed(company.description),
     taxID: confirmed(company.taxId),
     foundingDate: confirmed(company.foundedDate),
     address: address ? { "@type": "PostalAddress", streetAddress: address, addressCountry: "TW" } : undefined,
+    // 電話、Email 只在資料庫有值時輸出（跟畫面上的 tel:／mailto: 連結同一個條件）
+    telephone: company.phoneHref ? confirmed(company.phone) : undefined,
+    email: company.emailHref ? confirmed(company.email) : undefined,
   };
 }
 

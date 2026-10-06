@@ -146,6 +146,9 @@ textarea.adm-input { min-height: 6rem; resize: vertical; line-height: 1.7; }
 .adm-msg-ok { background: var(--adm-ok-bg); color: var(--adm-ok-ink); }
 .adm-msg-err { background: var(--adm-err-bg); color: var(--adm-err-ink); }
 .adm-msg-warn { background: var(--adm-warn-bg); color: var(--adm-warn-ink); }
+/* 儀表板「上線前檢查」：空白欄位清單 */
+.adm-launch-check p { margin: 0; }
+.adm-launch-check ul { margin: 0.35rem 0 0; padding-left: 1.25rem; list-style: disc; display: flex; flex-direction: column; gap: 0.2rem; }
 .adm-inline-msg { font-size: 0.8125rem; }
 .adm-inline-msg.is-ok { color: var(--adm-ok-ink); }
 .adm-inline-msg.is-err { color: var(--adm-err-ink); }

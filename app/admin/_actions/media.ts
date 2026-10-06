@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import * as z from "zod";
 import { prisma } from "@/lib/db";
 import { authorizeAction } from "@/lib/admin/guard";
@@ -8,6 +8,7 @@ import { failure, success, type ActionState } from "@/lib/admin/action-state";
 import { formToObject, isForeignKeyViolation, isNotFound, parseId, validationFailure, zOptionalText } from "@/lib/admin/validation";
 import { getMediaUsage } from "@/lib/media";
 import { getStorage } from "@/lib/storage";
+import { SITE_TAGS } from "@/lib/site-data/tags";
 
 // 媒體庫：改替代文字、刪除（被內容引用時不能刪，並列出引用處）。上傳走 /api/admin/media。
 
@@ -27,6 +28,8 @@ export async function updateMediaAlt(rawId: unknown, _prev: ActionState, formDat
     if (isNotFound(error)) return failure("找不到這張圖片，可能已被刪除");
     throw error;
   }
+  // 前台的團隊照片、證照圖、工程照片都帶 alt：用到圖片的前台資料快取一起失效
+  updateTag(SITE_TAGS.media);
   revalidatePath("/admin/media");
   return success("已儲存替代文字");
 }

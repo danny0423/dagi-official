@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { company } from "@/lib/placeholder-company";
 import { ArrowIcon } from "@/components/arrow-icon";
 import { CompanyContact } from "@/components/company-contact";
 import { PlaceholderText } from "@/components/placeholder-text";
 import { isLaunched } from "@/lib/launch";
+import type { SiteCompany } from "@/lib/site-data";
 
 // 未開放的頁面（lib/launch.ts）不放進頁尾。
 const footerLinks = [
@@ -12,7 +12,7 @@ const footerLinks = [
   { href: "/partners", label: "協力廠商合作" },
 ].filter(({ href }) => isLaunched(href));
 
-export function SiteFooter() {
+export function SiteFooter({ company }: { company: SiteCompany }) {
   return (
     <footer className="site-footer">
       <div className="site-container">
@@ -26,8 +26,8 @@ export function SiteFooter() {
           </div>
           <address className="footer-address">
             <p>地址：<PlaceholderText text={company.address} /></p>
-            <p>電話：<CompanyContact kind="phone" /></p>
-            <p>Email：<CompanyContact kind="email" /></p>
+            <p>電話：<CompanyContact kind="phone" company={company} /></p>
+            <p>Email：<CompanyContact kind="email" company={company} /></p>
           </address>
           <Link href="/contact" className="footer-cta" data-cta="footer">工程洽詢<ArrowIcon diagonal /></Link>
         </div>

@@ -1,12 +1,15 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
-import { company } from "@/lib/placeholder-company";
+import { DEFAULT_COMPANY_NAME } from "@/lib/placeholder-company";
 
 // 前台共用的分享預覽圖（LINE、Facebook 等），docs/ux-review-site.md #10。
 // 還沒有正式素材：先用清水模灰底＋公司名稱與「綜合營造業」的純文字圖；不放暫用的隆磐照片（D17）。
 // 各頁不要自己設定 openGraph，否則會蓋掉這張圖（見 lib/seo/metadata.ts）。
-export const alt = `${company.name}｜綜合營造業`;
+// 例外：這張圖的公司名稱刻意不讀資料庫，固定用 DEFAULT_COMPANY_NAME。字型只含下面這些字的子集，
+// 後台改了名稱會缺字；而且這張圖在 build 時就產生（build 時沒有資料庫）。正式改名時照下面的步驟重做字型並改常數。
+const companyName = DEFAULT_COMPANY_NAME;
+export const alt = `${companyName}｜綜合營造業`;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -33,7 +36,7 @@ export default async function Image() {
         <div style={{ position: "absolute", top: 40, left: 40, right: 40, bottom: 40, display: "flex", border: "1px solid #242a2b26" }} />
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", width: "100%", padding: "0 120px" }}>
           <div style={{ width: 96, height: 4, backgroundColor: "#38566b" }} />
-          <div style={{ marginTop: 48, fontSize: 96, fontWeight: 700, lineHeight: 1.3, letterSpacing: "-0.02em" }}>{company.name}</div>
+          <div style={{ marginTop: 48, fontSize: 96, fontWeight: 700, lineHeight: 1.3, letterSpacing: "-0.02em" }}>{companyName}</div>
           <div style={{ marginTop: 24, fontSize: 40, fontWeight: 500, letterSpacing: "0.3em", color: "#595f5e" }}>綜合營造業</div>
         </div>
       </div>

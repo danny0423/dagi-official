@@ -1,18 +1,20 @@
 import "server-only";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { failure, type ActionState } from "@/lib/admin/action-state";
 import { SLUG_MAX_LENGTH, truncateSlug } from "@/lib/admin/slug";
+import { SITE_TAGS } from "@/lib/site-data/tags";
 
 // 五種可上下架、可排序的內容：共用的設定與資料庫操作
+// siteTag：前台資料快取（lib/site-data）的標籤，寫入後由 revalidateContent() 讓它失效
 
 export const CONTENT_KINDS = {
-  projects: { label: "工程實績", adminPath: "/admin/projects", publicPaths: ["/", "/projects", "/projects/[slug]"] },
-  news: { label: "最新消息", adminPath: "/admin/news", publicPaths: ["/", "/news"] },
-  jobs: { label: "職缺", adminPath: "/admin/jobs", publicPaths: ["/careers"] },
-  team: { label: "團隊成員", adminPath: "/admin/team", publicPaths: ["/about/team"] },
-  certifications: { label: "證照", adminPath: "/admin/certifications", publicPaths: ["/about/license"] },
+  projects: { label: "工程實績", adminPath: "/admin/projects", siteTag: SITE_TAGS.projects, publicPaths: ["/", "/projects", "/projects/[slug]"] },
+  news: { label: "最新消息", adminPath: "/admin/news", siteTag: SITE_TAGS.news, publicPaths: ["/", "/news"] },
+  jobs: { label: "職缺", adminPath: "/admin/jobs", siteTag: SITE_TAGS.jobs, publicPaths: ["/careers"] },
+  team: { label: "團隊成員", adminPath: "/admin/team", siteTag: SITE_TAGS.team, publicPaths: ["/about/team"] },
+  certifications: { label: "證照", adminPath: "/admin/certifications", siteTag: SITE_TAGS.certifications, publicPaths: ["/about/license"] },
 } as const;
 
 export type ContentKind = keyof typeof CONTENT_KINDS;
@@ -99,9 +101,12 @@ function slugTakenFailure(kind: SlugKind, slug: string, suggestion: string | nul
   return failure("請修正標示的欄位", { slug: [message] }, suggestion ? { slug: suggestion } : undefined);
 }
 
-// 內容變動後：後台列表、儀表板與對應的前台頁面都重新產生
+// 內容變動後：後台列表、儀表板與對應的前台頁面都重新產生。只能在 server action 裡呼叫（updateTag 的限制）。
+// updateTag：前台資料快取立即失效，下一個請求就讀到新資料（不會先給舊資料）。
+// revalidatePath：清掉這些網址的路由快取與瀏覽器端的 Router Cache。
 export function revalidateContent(kind: ContentKind): void {
   const config = CONTENT_KINDS[kind];
+  updateTag(config.siteTag);
   revalidatePath("/admin");
   revalidatePath(config.adminPath, "layout");
   for (const path of config.publicPaths) {

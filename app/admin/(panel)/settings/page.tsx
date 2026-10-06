@@ -8,8 +8,8 @@ import { PageHeader } from "@/app/admin/_components/page-parts";
 
 export const metadata: Metadata = { title: "公司資料" };
 
-// 公司資料（F6）：全站頁尾、登記資格、聯絡我們會從這裡讀。只有 ADMIN 能改。
-// 前台目前仍讀 lib/placeholder-company.ts，之後改成讀 company_settings。
+// 公司資料（F6）：前台全站（頁首、頁尾、登記資格、聯絡我們、各頁 metadata、JSON-LD）都從這裡讀（lib/site-data）。只有 ADMIN 能改。
+// 欄位空白時前台顯示【待填：…】（對照見 lib/placeholder-company.ts）；儲存後前台快取立即失效（app/admin/_actions/settings.ts）。
 export default async function SettingsPage() {
   await requireRole("ADMIN");
   const settings = await prisma.companySettings.findUnique({ where: { id: 1 } });

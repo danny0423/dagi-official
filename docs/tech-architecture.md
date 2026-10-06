@@ -21,7 +21,7 @@
 
 | # | 需求 |
 |---|---|
-| S1 | 前台頁面伺服器端產生 HTML（SSG／ISR），內容改了後台存檔就更新 |
+| S1 | 前台頁面伺服器端產生完整 HTML（每次請求產生，資料走快取），後台存檔後下一個請求就是新內容（第 5 節「前台資料流與快取」） |
 | S2 | 每頁獨立 title、description、Open Graph 圖 |
 | S3 | `sitemap.xml`、`robots.txt` 自動產生；`/admin`、`/api` 不收錄 |
 | S4 | JSON-LD 結構化資料：`GeneralContractor`（公司）、`BreadcrumbList` |
@@ -93,6 +93,8 @@ flowchart LR
 | `proxy.ts` | 沒有 session cookie 的人擋出 `/admin`（只看 cookie；真正驗證在 `lib/admin/guard.ts`） |
 | `lib/admin/` | 後台共用：`guard.ts`（`requireAdmin()`／`requireRole()`）、`session.ts`、`rate-limit.ts`（登入頻率限制，記憶體內）、`validation.ts`（zod） |
 | `lib/storage/` | 圖片儲存介面（put／delete／getUrl），`local`、`s3` 兩種實作 |
+| `lib/site-data/` | 前台讀資料的唯一入口：`index.ts`（快取＋組圖片網址）、`queries.ts`（Prisma 查詢）、`company.ts`（公司資料空白→待填）、`tags.ts`（快取標籤）、`launch-check.ts`（上線前檢查） |
+| `lib/placeholder-company.ts` | 公司資料欄位的標籤、待填文字、預設值（空白時前台顯示什麼） |
 | `lib/media.ts` | 上傳驗證（JPG／PNG／WebP、10MB、隨機檔名）與圖片引用檢查 |
 | `lib/db.ts` | Prisma client（`@prisma/adapter-pg`） |
 | `lib/generated/prisma/` | `prisma generate` 產物，不進 git |
@@ -126,7 +128,7 @@ flowchart LR
 
 | 表 | 存什麼 | 前台用在哪 |
 |---|---|---|
-| `company_settings` | 公司名稱、統編、登記證字號、等級、地址、電話、Email（只有一筆） | 頁尾、登記資格、聯絡我們 |
+| `company_settings` | 公司名稱、統編、登記證字號、等級、地址、電話、Email（只有一筆） | 全站頁首、頁尾、metadata、JSON-LD；首頁、關於我們、登記資格、承攬業務、聯絡我們 |
 | `admin_users` | 後台帳號、密碼雜湊、角色（管理員／編輯） | — |
 | `sessions` | 後台登入 session（D12） | — |
 | `projects` | 工程實績：名稱、類別、地點、構造、工期、狀態、上下架 | 工程實績、首頁精選 |
@@ -139,6 +141,35 @@ flowchart LR
 | `vendor_applications` | 協力廠商表單內容、處理狀態 | 後台收件匣 |
 
 `team_members` 的「已取得同意公開」沒勾就不顯示在前台（對應 `AGENTS.md` 內容鐵則）：後台禁止未同意就上架，前台查詢用 `lib/content.ts` 的 `publicTeamMemberWhere`。
+
+### 前台資料流與快取
+
+```
+後台 server action 寫入 → updateTag(SITE_TAGS.xxx) → 前台下一個請求：lib/site-data（unstable_cache 未命中）→ PostgreSQL
+前台請求 → page / layout / generateMetadata → lib/site-data 的 getXxx()（connection() → 快取命中就不查資料庫）
+```
+
+| 項目 | 做法 | 理由 |
+|---|---|---|
+| 頁面產生方式 | 前台頁面每次請求由伺服器產生完整 HTML（`lib/site-data` 每個函式先 `await connection()`） | Docker build 階段沒有資料庫：`connection()` 讓 `next build` 直接把頁面標成請求時產生，不會在 build 時連資料庫或把待填內容烤進靜態檔 |
+| 資料快取 | `unstable_cache`＋標籤（`lib/site-data/tags.ts`），保險期限 1 小時 | 大部分請求不查資料庫；有人不經後台改資料庫時最晚 1 小時更新 |
+| 存檔後更新 | server action 成功後 `updateTag()`（內容：`lib/admin/content.ts` 的 `revalidateContent()`；公司資料：`settings.ts`；圖片 alt：`media.ts`），另保留原本的 `revalidatePath()` | `updateTag` 立即失效，下一個請求就讀新資料（`revalidateTag(…, "max")` 會先給一次舊資料） |
+| 不用 Cache Components | 沒開 `cacheComponents`，所以不用 `"use cache"`／`cacheTag` | 開了要把後台所有讀 cookie 的頁面改成 Suspense 結構，牽動太大。Next 16 文件標註 `unstable_cache` 已由 `"use cache"` 取代，但不開 Cache Components 的舊模型指南（caching-without-cache-components）仍用它；前台的快取寫法集中在 `lib/site-data/index.ts`，之後改用 `"use cache"` 只動這一個檔案（後台仍要另外改 Suspense 結構） |
+| 圖片網址 | 快取只存 `storageKey`，網址每次請求用 `lib/storage` 的 `getUrl()` 組 | 換 `STORAGE_DRIVER` 不會讀到舊網址；S3 完整網址先不經 Next 圖片最佳化（未設 `remotePatterns`） |
+| 證照過期 | 快取只存「已上架」，過期與否每次請求依台北時間判斷 | 不會因為快取顯示已過期的證照 |
+| 單案網址 | 先比對已快取的工程列表，存在才查單筆；`params.slug` 先用 `decodeSlugParam()` 解碼 | 亂打的網址不會各自建立快取；Next 16 給頁面的 params 是 `encodeURIComponent` 過的值，中文代稱要解碼 |
+| 例外 | 分享圖 `app/(site)/opengraph-image.tsx` 固定用 `DEFAULT_COMPANY_NAME` | build 時產生、字型只含現有字的子集 |
+| 多台機器 | 快取在 Next 程序的記憶體與 `.next/cache`，目前單一容器沒問題 | 之後開多個容器要設定共用的 `cacheHandlers`，否則各容器各自失效 |
+
+| 前台頁面 | 資料來源 | 資料庫沒資料時 |
+|---|---|---|
+| 全站頁首、頁尾、metadata、JSON-LD | `getSiteCompany()` | 欄位空白顯示 `【待填：…】`（`lib/placeholder-company.ts`）；JSON-LD 省略；電話、Email 沒值不產生連結 |
+| 專業團隊 | `getPublicTeamMembers()`（已上架＋同意公開） | 待填範例卡片 |
+| 營造業登記與資格 | `getSiteCompany()`、`getPublicCertifications()`（已上架＋未過期） | 待填範例證照卡 |
+| 工程實績列表、單案、首頁精選、sitemap | `getPublishedProjects()`、`getProjectBySlug()`、`getFeaturedProjects()` | 範例專案（`lib/placeholder-project.ts`）；有真實工程後 `/projects/example-project` 回 404 |
+| 最新消息、人才招募 | `getPublishedNews()`、`getPublishedJobs()` | 範例列表、範例職缺 |
+
+上線前檢查以資料庫為準：後台儀表板的「上線前檢查」直接查資料庫（權威）；`npm run check:launch` 連得到資料庫時依實際值判斷，連不到（Docker build）時資料庫相關項目列為「未檢查」、不計入合計。
 
 ## 6. 環境
 

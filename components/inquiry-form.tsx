@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { PlaceholderText } from "@/components/placeholder-text";
-import { company } from "@/lib/placeholder-company";
 
-export function InquiryForm({ kind }: { kind: "engineering" | "partner" }) {
+// responseTime：公司資料的洽詢回覆時間（資料庫空白時是【待填】字樣），由頁面讀 lib/site-data 後傳進來；
+// 這是 client component，不能自己讀資料庫。只有工程洽詢的完成訊息預覽會用到。
+export function InquiryForm({ kind, responseTime = "" }: { kind: "engineering" | "partner"; responseTime?: string }) {
   const partner = kind === "partner";
   const prefix = partner ? "partner" : "engineering";
   const form = useRef<HTMLFormElement>(null);
@@ -54,6 +55,6 @@ export function InquiryForm({ kind }: { kind: "engineering" | "partner" }) {
       <button type="submit" className="button-primary" disabled data-cta={partner ? "partner-submit" : "contact-submit"} aria-describedby={`${prefix}-notice`}>送出</button>
     </div>
     <p className="form-status" role="status">{checked ? "欄位檢查完成。尚未開放送出，資料未儲存或寄出。" : ""}</p>
-    {!partner && <details className="submission-preview"><summary>送出完成訊息（僅供預覽）</summary><p><PlaceholderText text={`已收到您的洽詢，我們會在${company.responseTime}內與您聯絡。`} /></p><p className="field-help">以上為完成畫面的文案預覽，並未送出任何資料。</p></details>}
+    {!partner && <details className="submission-preview"><summary>送出完成訊息（僅供預覽）</summary><p><PlaceholderText text={`已收到您的洽詢，我們會在${responseTime}內與您聯絡。`} /></p><p className="field-help">以上為完成畫面的文案預覽，並未送出任何資料。</p></details>}
   </form>;
 }

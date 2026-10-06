@@ -5,14 +5,19 @@ import { CompanyContact } from "@/components/company-contact";
 import { PhotoPlaceholder } from "@/components/photo-placeholder";
 import { PlaceholderText } from "@/components/placeholder-text";
 import { isLaunched, requireLaunched } from "@/lib/launch";
-import { company } from "@/lib/placeholder-company";
+import { getFeaturedProjects, getSiteCompany } from "@/lib/site-data";
+import { joinPresent, projectStatusText } from "@/lib/site-data/format";
 import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = pageMetadata({
-  path: "/",
-  title: { absolute: `${company.name}｜綜合營造業` },
-  description: `${company.name}為綜合營造業，承攬民間建築、公共工程與危老重建營造。網站提供營造業登記資料、承攬業務說明與工程洽詢管道。`,
-});
+// 後台「一句話介紹」有填時當作首頁描述（後台欄位說明：搜尋結果的網站描述），沒填用下面的預設描述
+export async function generateMetadata(): Promise<Metadata> {
+  const company = await getSiteCompany();
+  return pageMetadata({
+    path: "/",
+    title: { absolute: `${company.name}｜綜合營造業` },
+    description: company.description ?? `${company.name}為綜合營造業，承攬民間建築、公共工程與危老重建營造。網站提供營造業登記資料、承攬業務說明與工程洽詢管道。`,
+  });
+}
 
 const services = [
   { title: "民間建築工程", description: "從開工到取得使用執照，配合建設公司的時程與品質要求。" },
@@ -26,8 +31,13 @@ const principles = [
   { title: "工安優先", description: "【待填：公司實際的工安制度一句話】" },
 ];
 
-export default function Page() {
+export default async function Page() {
   requireLaunched("/");
+  // 精選工程區塊只在 /projects 開放時顯示（見下方），沒開放就不查工程資料
+  const [company, featured] = await Promise.all([
+    getSiteCompany(),
+    isLaunched("/projects") ? getFeaturedProjects() : Promise.resolve([]),
+  ]);
   return (
     <>
       <section className="home-hero concrete" aria-labelledby="hero-title">
@@ -50,7 +60,8 @@ export default function Page() {
         {[
           { value: company.founded, label: "年成立" },
           { value: company.engineers, label: "位專任工程人員" },
-          { value: company.projects, label: "件承攬工程" },
+          // 公司資料沒有「累計承攬件數」欄位，維持待填；有可查證的數字後再決定加欄位或整列拿掉
+          { value: "【待填：累計承攬件數，沒有就整列拿掉】", label: "件承攬工程" },
         ].map(({ value, label }) => <p key={label}><span className="trust-value"><PlaceholderText text={value} /></span><span className="trust-label">{label}</span></p>)}
       </div>
 
@@ -66,23 +77,38 @@ export default function Page() {
         </div>
       </section>
 
-      {/* 設計預覽：上線方式尚未決定，保留明確標示的範例；若選方式 1，移除整區。
+      {/* 精選工程：已上架且勾了「首頁精選」的工程（最多 3 件）；沒有時顯示明確標示的範例。上線方式若選方式 1，移除整區。
           工程實績頁（/projects）未開放時整區不顯示，避免連到 404（lib/launch.ts）。 */}
       {isLaunched("/projects") && <section className="project-section section-space" aria-labelledby="projects-title">
         <div className="site-container">
           <div className="section-heading"><h2 id="projects-title">精選工程</h2><Link href="/projects" className="text-link">查看工程實績<ArrowIcon diagonal /></Link></div>
-          <div className="featured-project">
-            <PhotoPlaceholder description="工地實景" />
+          {featured.map((project) => <div className="featured-project" key={project.id}>
+            <PhotoPlaceholder description="工地實景" photo={project.cover ? { src: project.cover.url, alt: project.cover.alt || `${project.title}工地實景` } : undefined} />
             <div className="project-copy">
-              <p className="project-example"><PlaceholderText text="【範例專案，非真實案件】" /></p>
-              <h3><PlaceholderText text="【待填：工程名稱】" /></h3>
+              <h3><Link href={`/projects/${encodeURIComponent(project.slug)}`}>{project.title}</Link></h3>
               <dl className="project-details">
-                <div><dt>工程地點</dt><dd><PlaceholderText text="【待填：地點（縣市區即可）】" /></dd></div>
-                <div><dt>構造規模</dt><dd><PlaceholderText text="【待填：結構與樓層，例：RC 造地上 ○ 層】" /></dd></div>
-                <div><dt>工程狀態</dt><dd><PlaceholderText text="【待填：施工中／完工年份】" /></dd></div>
+                {[
+                  ["工程地點", project.location],
+                  ["構造規模", joinPresent([project.structure, project.scale], "，")],
+                  ["工程狀態", projectStatusText(project)],
+                ].filter(([, value]) => value).map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
               </dl>
             </div>
-          </div>
+          </div>)}
+          {featured.length === 0 && ( // check-launch: fallback featuredProjects
+            <div className="featured-project">
+              <PhotoPlaceholder description="工地實景" />
+              <div className="project-copy">
+                <p className="project-example"><PlaceholderText text="【範例專案，非真實案件】" /></p>
+                <h3><PlaceholderText text="【待填：工程名稱】" /></h3>
+                <dl className="project-details">
+                  <div><dt>工程地點</dt><dd><PlaceholderText text="【待填：地點（縣市區即可）】" /></dd></div>
+                  <div><dt>構造規模</dt><dd><PlaceholderText text="【待填：結構與樓層，例：RC 造地上 ○ 層】" /></dd></div>
+                  <div><dt>工程狀態</dt><dd><PlaceholderText text="【待填：施工中／完工年份】" /></dd></div>
+                </dl>
+              </div>
+            </div>
+          )}
         </div>
       </section>}
 
@@ -104,7 +130,7 @@ export default function Page() {
 
       <section className="site-container section-space contact-section" aria-labelledby="contact-title">
         <div><h2 id="contact-title">有工程需要評估？</h2><p className="contact-description"><PlaceholderText text={`留下工程地點和規模，${company.responseTime}內由工務人員跟您聯絡。`} /></p></div>
-        <div className="contact-actions"><Link href="/contact" className="button-primary" data-cta="home-contact">填寫工程洽詢<ArrowIcon /></Link><p>電話：<CompanyContact kind="phone" /></p></div>
+        <div className="contact-actions"><Link href="/contact" className="button-primary" data-cta="home-contact">填寫工程洽詢<ArrowIcon /></Link><p>電話：<CompanyContact kind="phone" company={company} /></p></div>
       </section>
     </>
   );

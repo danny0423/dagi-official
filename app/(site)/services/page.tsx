@@ -2,18 +2,22 @@ import type { Metadata } from "next";
 import { PageHeading } from "@/components/page-heading";
 import { InquiryLink, PageSection } from "@/components/page-section";
 import { PlaceholderText } from "@/components/placeholder-text";
-import { company } from "@/lib/placeholder-company";
 import { requireLaunched } from "@/lib/launch";
+import { getSiteCompany } from "@/lib/site-data";
 import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = pageMetadata({
-  path: "/services",
-  title: "承攬業務",
-  description: `${company.shortName}承攬的工程類型、依營造業法的承攬範圍與合作流程，協助建設公司、起造人、招標機關與地主確認工程是否適合委託。`,
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const company = await getSiteCompany();
+  return pageMetadata({
+    path: "/services",
+    title: "承攬業務",
+    description: `${company.shortName}承攬的工程類型、依營造業法的承攬範圍與合作流程，協助建設公司、起造人、招標機關與地主確認工程是否適合委託。`,
+  });
+}
 
-export default function Page() {
+export default async function Page() {
   requireLaunched("/services");
+  const company = await getSiteCompany();
   return <>
     <PageHeading path="/services" title="承攬業務" />
     <div className="site-container interior-content">

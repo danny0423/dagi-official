@@ -3,14 +3,17 @@ import { PageHeading } from "@/components/page-heading";
 import { PageSection } from "@/components/page-section";
 import { PlaceholderText } from "@/components/placeholder-text";
 import { requireLaunched } from "@/lib/launch";
-import { company } from "@/lib/placeholder-company";
+import { getSiteCompany } from "@/lib/site-data";
 import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = pageMetadata({
-  path: "/safety-quality",
-  title: "工安與品質管理",
-  description: `${company.name}的工安政策與品質管理制度，說明工地安全管理與施工品質檢查的做法。`,
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const company = await getSiteCompany();
+  return pageMetadata({
+    path: "/safety-quality",
+    title: "工安與品質管理",
+    description: `${company.name}的工安政策與品質管理制度，說明工地安全管理與施工品質檢查的做法。`,
+  });
+}
 
 export default function Page() {
   requireLaunched("/safety-quality");

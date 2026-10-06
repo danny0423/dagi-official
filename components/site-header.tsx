@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { company } from "@/lib/placeholder-company";
 import { PlaceholderText } from "@/components/placeholder-text";
 import { SiteNavigation } from "@/components/site-navigation";
+import type { SiteCompany } from "@/lib/site-data";
 
-export function SiteHeader() {
+export function SiteHeader({ company }: { company: SiteCompany }) {
   return (
     <header className="site-header">
       <div className="site-container header-inner">

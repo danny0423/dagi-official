@@ -31,7 +31,7 @@
 ## 待填資料的呈現
 
 - 文案中的 `【待填：…】`、`【範例專案，非真實案件】` 要原樣顯示，並加上明顯的標記樣式（例如淡黃底），讓任何人一眼看出這是還沒填的資料。
-- 統編、登記證字號、公司名稱等公司資料，之後會從資料庫的 `company_settings` 讀（`docs/tech-architecture.md` F6）。現在先集中寫在一個常數檔（例如 `lib/placeholder-company.ts`），所有頁面從這裡取，之後換成資料庫只要改一處。
+- 統編、登記證字號、公司名稱等公司資料從資料庫的 `company_settings` 讀（`docs/tech-architecture.md` F6）：頁面一律用 `lib/site-data` 的 `getSiteCompany()` 取，空白欄位的待填文字在 `lib/placeholder-company.ts`。
 
 ## 技術規則
 

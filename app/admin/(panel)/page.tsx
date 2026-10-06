@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
-import { requireAdmin } from "@/lib/admin/guard";
+import { todayInTaipei } from "@/lib/admin/format";
+import { hasRole, requireAdmin } from "@/lib/admin/guard";
+import { companyLaunchIssues, contentLaunchIssues } from "@/lib/site-data/launch-check";
+import { countPublicContent, fetchCompanyRow } from "@/lib/site-data/queries";
 import { Notice, PageHeader, type SearchParams } from "@/app/admin/_components/page-parts";
 
-// 後台首頁（儀表板）：收件匣未處理數量、各內容筆數。功能清單見 docs/tech-architecture.md F4～F8。
+// 後台首頁（儀表板）：收件匣未處理數量、各內容筆數、上線前檢查。功能清單見 docs/tech-architecture.md F4～F8。
+// 上線前檢查直接查資料庫（不經前台快取），是權威的檢查結果：正式部署 build 時連不到資料庫，npm run check:launch 只能檢查原始碼。
 export const metadata: Metadata = { title: "儀表板" };
 
 const EXPIRY_WARNING_DAYS = 60;
@@ -13,7 +17,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const user = await requireAdmin();
   const { denied } = await searchParams;
 
-  const [inquiries, vendors, projects, news, jobs, team, certifications, mediaCount, expiringCerts, noConsent] =
+  const [inquiries, vendors, projects, news, jobs, team, certifications, mediaCount, expiringCerts, noConsent, companyRow, publicCounts] =
     await Promise.all([
       prisma.inquiry.groupBy({ by: ["status"], _count: { _all: true } }),
       prisma.vendorApplication.groupBy({ by: ["status"], _count: { _all: true } }),
@@ -25,7 +29,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       prisma.media.count(),
       prisma.certification.count({ where: { expiresOn: { lte: daysFromNow(EXPIRY_WARNING_DAYS) } } }),
       prisma.teamMember.count({ where: { consentToPublish: false } }),
+      fetchCompanyRow(),
+      countPublicContent(todayInTaipei()),
     ]);
+  const companyIssues = companyLaunchIssues(companyRow);
+  const contentIssues = contentLaunchIssues(publicCounts);
 
   const statusCount = (rows: { status: string; _count: { _all: number } }[], status: string) =>
     rows.find((row) => row.status === status)?._count._all ?? 0;
@@ -83,6 +91,34 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
             <span className="adm-stat-sub">張圖片</span>
           </Link>
         </div>
+      </section>
+
+      <section className="flex flex-col gap-2" aria-labelledby="launch-check-title">
+        <h2 id="launch-check-title" className="adm-section-title">上線前檢查</h2>
+        {companyIssues.length === 0 && contentIssues.length === 0 && (
+          <p className="adm-msg adm-msg-ok">已開放的頁面用到的公司資料都已填寫，內容區塊也都有資料，前台不會因為資料庫空白而顯示待填。</p>
+        )}
+        {companyIssues.length > 0 && (
+          <div className="adm-msg adm-msg-warn adm-launch-check">
+            <p>
+              公司資料有 {companyIssues.length} 個欄位空白，已開放的頁面會顯示【待填】：
+              {hasRole(user, "ADMIN") ? <Link href="/admin/settings">前往公司資料</Link> : "公司資料只有管理員可以修改，請聯絡管理員。"}
+            </p>
+            <ul>
+              {companyIssues.map((issue) => (
+                <li key={issue.column}>
+                  {issue.label}（用在：{issue.pages.join("、")}）
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {contentIssues.map((issue) => (
+          <p key={issue.kind} className="adm-msg adm-msg-warn">
+            「{issue.page}」沒有{issue.condition}，前台顯示待填範例，<Link href={issue.adminHref}>前往{issue.label}</Link>
+          </p>
+        ))}
+        <p className="adm-hint">這裡只檢查資料庫的部分；頁面文案裡寫死的待填字樣、暫用照片，請開發人員執行 npm run check:launch 查看。</p>
       </section>
 
       {(expiringCerts > 0 || noConsent > 0) && (

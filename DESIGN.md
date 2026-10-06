@@ -109,7 +109,7 @@ components:
 | 共用元件／樣式 | 行為與使用規則 |
 |---|---|
 | `SiteHeader`、`SiteNavigation` | 公司名稱與業態、主選單、關於我們子選單及工程洽詢入口。現行頁面加底線；小螢幕按鈕提供 `aria-expanded`。Escape 關閉展開內容並回復焦點，焦點離開導覽或選取連結時關閉選單。 |
-| `SiteFooter` | 深色底的公司登記、地址、聯絡資料、洽詢 CTA 與輔助連結。公司資料集中取自 `lib/placeholder-company.ts`。 |
+| `SiteFooter` | 深色底的公司登記、地址、聯絡資料、洽詢 CTA 與輔助連結。公司資料取自資料庫（`lib/site-data` 的 `getSiteCompany()`），空白欄位顯示待填。 |
 | 主要按鈕／文字連結 | 主要按鈕使用鋼藍底白字；文字連結以底線及箭頭呈現。兩者最小高度 3.5rem、字重 500；主要按鈕背景過渡 180ms ease。CTA 保留 `data-cta` 位置標記。 |
 | `PhotoPlaceholder` | 清水模底、置中中文待填標記及固定比例；有真實照片時透過 `photo` 傳入 src／alt，使用 `next/image` 與 object-fit cover。 |
 | `PlaceholderText` | 保留 `【待填：…】` 與 `【範例專案，非真實案件】` 原文，將方括號段落以 mark 淡黃底標記。 |

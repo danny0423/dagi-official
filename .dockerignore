@@ -3,3 +3,7 @@ node_modules
 .env
 .git
 lib/generated
+assets
+storage
+review-screens
+docs

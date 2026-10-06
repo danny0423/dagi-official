@@ -1,10 +1,11 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import * as z from "zod";
 import { prisma } from "@/lib/db";
 import { authorizeAction } from "@/lib/admin/guard";
 import { success, type ActionState } from "@/lib/admin/action-state";
+import { SITE_TAGS } from "@/lib/site-data/tags";
 import {
   formToObject,
   validationFailure,
@@ -50,7 +51,8 @@ export async function updateCompanySettings(_prev: ActionState, formData: FormDa
     create: { id: 1, ...parsed.data },
     update: parsed.data,
   });
-  // 公司資料出現在全站頁尾，整站重新產生
+  // 公司資料出現在全站頁首、頁尾與各頁 metadata：前台資料快取立即失效，整站重新產生
+  updateTag(SITE_TAGS.company);
   revalidatePath("/", "layout");
   return success("已儲存公司資料");
 }

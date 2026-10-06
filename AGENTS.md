@@ -26,9 +26,11 @@
 - Git push 走 SSH（`git@github.com:danny0423/dagi-official.git`）；HTTPS 會用到本機存的另一個 GitHub 帳號而 403。
 - `.env` 不進 git，只 commit `.env.example`。
 - `assets/dagi素材/`（本機、不進 git）經檢視是 隆磐建設 舊官網素材，不是達吉的 logo 或工地照，不可用在網站上（`docs/assets-manifest.md`）；唯一例外是首頁主視覺暫用的一張氛圍照（D17），上線前要換掉。
-- `company.name` 是「達吉營造有限公司」，已含「營造」；需要短稱用 `company.shortName`，不要寫成 `${company.name}營造`。
-- 前台頁面是否開放由 `lib/launch.ts` 決定；新增前台頁要登記並在 page 開頭呼叫 `requireLaunched(path)`。開放前跑 `npm run check:launch` 看還有哪些【待填】；正式部署 build 時設 `LAUNCH_STRICT=1`。
+- 公司名稱（`getSiteCompany()` 的 `company.name`）是「達吉營造有限公司」，已含「營造」；需要短稱用 `company.shortName`，不要寫成 `${company.name}營造`。
+- 前台資料一律經 `lib/site-data/`（公司資料、團隊、證照、工程實績、消息、職缺），前台頁面不要直接用 prisma；`next build` 時沒有資料庫，靠它的 `connection()` 才不會在 build 時連資料庫。後台新增會影響前台的寫入時，server action 成功後要呼叫 `updateTag(SITE_TAGS.xxx)`（五種內容走 `lib/admin/content.ts` 的 `revalidateContent()`），否則前台最久 1 小時後才更新。
+- 前台頁面是否開放由 `lib/launch.ts` 決定；新增前台頁要登記並在 page 開頭呼叫 `requireLaunched(path)`。開放前看後台儀表板的「上線前檢查」（資料庫部分，權威）並跑 `npm run check:launch`（原始碼裡的【待填】）；正式部署 build 時設 `LAUNCH_STRICT=1`。資料庫沒資料時才顯示的範例區塊要標 `// check-launch: fallback <種類>`，頁面新用到公司欄位要同步 `lib/site-data/launch-check.ts` 的 `companyColumnsByPage`（check:launch 會提示）。
 - 後台表單一律用 `app/admin/_components/form.tsx` 的 `AdminForm`（內建未存檔提醒、錯誤定位、登入過期不丟資料）；server action 開頭用 `authorizeAction()` 回傳狀態，不要 redirect。
+- 用 `process.cwd()` 組檔案路徑會讓 standalone 把整個專案打包進去；`next.config.ts` 的 `outputFileTracingExcludes` 已排除 `assets/`、`review-screens/`、`storage/`、`docs/`、`.env*`，新增大型或敏感資料夾時要一起加進去（`.dockerignore` 也要）。
 - 資料庫一開始沒有管理員帳號，要先跑 `npm run db:seed` 建立（指令見 `README.md`）。
 
 ## 文件

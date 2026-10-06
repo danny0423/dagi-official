@@ -3,14 +3,17 @@ import { PageHeading } from "@/components/page-heading";
 import { PageSection } from "@/components/page-section";
 import { PlaceholderText } from "@/components/placeholder-text";
 import { requireLaunched } from "@/lib/launch";
-import { company } from "@/lib/placeholder-company";
+import { getSiteCompany } from "@/lib/site-data";
 import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = pageMetadata({
-  path: "/privacy",
-  title: "隱私權政策",
-  description: `${company.name}網站的隱私權政策，說明透過表單蒐集個人資料的目的、類別、利用方式與當事人權利。`,
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const company = await getSiteCompany();
+  return pageMetadata({
+    path: "/privacy",
+    title: "隱私權政策",
+    description: `${company.name}網站的隱私權政策，說明透過表單蒐集個人資料的目的、類別、利用方式與當事人權利。`,
+  });
+}
 
 export default function Page() {
   requireLaunched("/privacy");

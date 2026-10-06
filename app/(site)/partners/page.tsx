@@ -4,14 +4,17 @@ import { PageSection } from "@/components/page-section";
 import { InquiryForm } from "@/components/inquiry-form";
 import { PlaceholderText } from "@/components/placeholder-text";
 import { requireLaunched } from "@/lib/launch";
-import { company } from "@/lib/placeholder-company";
+import { getSiteCompany } from "@/lib/site-data";
 import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = pageMetadata({
-  path: "/partners",
-  title: "協力廠商合作",
-  description: `${company.name}徵求協力廠商：合作說明與協力廠商登記表單。`,
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const company = await getSiteCompany();
+  return pageMetadata({
+    path: "/partners",
+    title: "協力廠商合作",
+    description: `${company.name}徵求協力廠商：合作說明與協力廠商登記表單。`,
+  });
+}
 
 export default function Page() {
   requireLaunched("/partners");

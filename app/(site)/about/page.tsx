@@ -2,18 +2,22 @@ import type { Metadata } from "next";
 import { AboutNavigation, PageHeading } from "@/components/page-heading";
 import { PageSection } from "@/components/page-section";
 import { PlaceholderText } from "@/components/placeholder-text";
-import { company } from "@/lib/placeholder-company";
 import { requireLaunched } from "@/lib/launch";
+import { getSiteCompany } from "@/lib/site-data";
 import { pageMetadata } from "@/lib/seo/metadata";
 
-export const metadata: Metadata = pageMetadata({
-  path: "/about",
-  title: "關於我們",
-  description: `${company.name}的公司簡介、經營理念與大事記，說明我們如何由內部工務團隊統一管理營造施工，讓業主只需要對一個窗口。`,
-});
+export async function generateMetadata(): Promise<Metadata> {
+  const company = await getSiteCompany();
+  return pageMetadata({
+    path: "/about",
+    title: "關於我們",
+    description: `${company.name}的公司簡介、經營理念與大事記，說明我們如何由內部工務團隊統一管理營造施工，讓業主只需要對一個窗口。`,
+  });
+}
 
-export default function Page() {
+export default async function Page() {
   requireLaunched("/about");
+  const company = await getSiteCompany();
   return <>
     <PageHeading path="/about" title="關於我們" />
     <AboutNavigation current="/about" />
