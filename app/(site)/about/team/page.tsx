@@ -5,8 +5,11 @@ import { AboutNavigation, PageHeading } from "@/components/page-heading";
 import { PageSection } from "@/components/page-section";
 import { PhotoPlaceholder } from "@/components/photo-placeholder";
 import { PlaceholderText } from "@/components/placeholder-text";
-import { requireLaunched } from "@/lib/launch";
-import { getPublicTeamMembers, getSiteCompany } from "@/lib/site-data";
+import { PreviewLabels } from "@/components/preview-labels";
+import { contentAnchor } from "@/lib/content";
+import { isAdminPreview, requireLaunched } from "@/lib/preview";
+import { getPublicTeamMembers, getSiteCompany, type PublicTeamMember } from "@/lib/site-data";
+import { getPreviewTeamMembers, type MaybePreview } from "@/lib/site-data/preview";
 import { pageMetadata } from "@/lib/seo/metadata";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -19,9 +22,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Page() {
-  requireLaunched("/about/team");
-  // 只有「已上架」且「已取得同意公開」的成員（lib/content.ts 的 publicTeamMemberWhere）；一個都沒有時顯示待填範例
-  const members = await getPublicTeamMembers();
+  await requireLaunched("/about/team");
+  // 只有「已上架」且「已取得同意公開」的成員（lib/content.ts 的 publicTeamMemberWhere）；一個都沒有時顯示待填範例。
+  // 登入後台的人看到全部成員，訪客看不到的加標籤（lib/preview.ts）。每張卡片有錨點 id，後台「前台查看」會連到 #member-{id}
+  const members: MaybePreview<PublicTeamMember>[] = (await isAdminPreview()) ? await getPreviewTeamMembers() : await getPublicTeamMembers();
   const experienced = members.filter((member) => member.experience);
   return <>
     <PageHeading path="/about/team" title="專業團隊" parent={{ href: "/about", label: "關於我們" }} />
@@ -30,7 +34,8 @@ export default async function Page() {
       <section aria-labelledby="team-members" className="team-section">
         <h2 id="team-members">團隊介紹</h2>
         <div className="team-grid">
-          {members.map((member) => <article className="team-member" key={member.id}>
+          {members.map((member) => <article className="team-member" id={contentAnchor.teamMember(member.id)} key={member.id}>
+            <PreviewLabels labels={member.previewLabels} />
             {member.photo && <PhotoPlaceholder description="本人同意使用的照片" className="team-portrait" sizes="(max-width: 767px) 100vw, 45vw"
               photo={{ src: member.photo.url, alt: member.photo.alt || `${member.name}照片` }} />}
             <div className="team-member-heading"><h3>{member.name}</h3>{member.title && <p>{member.title}</p>}</div>
@@ -53,6 +58,7 @@ export default async function Page() {
       {/* 過往經歷：非本公司承攬，一定要加註（AGENTS.md 工程實績上線方式） */}
       {experienced.length > 0 && <PageSection id="experience" title="核心人員經歷">
         {experienced.map((member) => <Fragment key={member.id}>
+          <PreviewLabels labels={member.previewLabels} />
           <h3>{member.name}過往任職經歷</h3>
           <MultilineText text={member.experience} />
         </Fragment>)}

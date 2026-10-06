@@ -34,3 +34,13 @@ export function publicCertificationWhere(today: string): Prisma.CertificationWhe
 export function isCertificationValid(expiresOn: string | null, today: string): boolean {
   return expiresOn === null || expiresOn >= today;
 }
+
+/**
+ * 列表型內容（職缺、團隊成員、證照）沒有單頁，前台卡片用這些 id 當錨點，
+ * 後台「前台查看」連到「頁面網址#錨點」（lib/admin/public-url.ts），打開會捲到並強調那張卡片（globals.css 的 :target）。
+ */
+export const contentAnchor = {
+  job: (id: number) => `job-${id}`,
+  teamMember: (id: number) => `member-${id}`,
+  certification: (id: number) => `cert-${id}`,
+};

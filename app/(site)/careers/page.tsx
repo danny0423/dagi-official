@@ -3,8 +3,11 @@ import { MultilineText } from "@/components/multiline-text";
 import { PageHeading } from "@/components/page-heading";
 import { PageSection } from "@/components/page-section";
 import { PlaceholderText } from "@/components/placeholder-text";
-import { requireLaunched } from "@/lib/launch";
-import { getPublishedJobs, getSiteCompany } from "@/lib/site-data";
+import { PreviewLabels } from "@/components/preview-labels";
+import { contentAnchor } from "@/lib/content";
+import { isAdminPreview, requireLaunched } from "@/lib/preview";
+import { getPublishedJobs, getSiteCompany, type PublicJob } from "@/lib/site-data";
+import { getPreviewJobs, type MaybePreview } from "@/lib/site-data/preview";
 import { pageMetadata } from "@/lib/seo/metadata";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -17,14 +20,16 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Page() {
-  requireLaunched("/careers");
-  // 已上架的職缺（排序同後台）；一個都沒有時顯示範例職缺與福利待填
-  const jobs = await getPublishedJobs();
+  await requireLaunched("/careers");
+  // 已上架的職缺（排序同後台）；一個都沒有時顯示範例職缺與福利待填。
+  // 登入後台的人看到全部職缺，未上架的加標籤（lib/preview.ts）。每張卡片有錨點 id，後台「前台查看」會連到 #job-{id}
+  const jobs: MaybePreview<PublicJob>[] = (await isAdminPreview()) ? await getPreviewJobs() : await getPublishedJobs();
   return <>
     <PageHeading path="/careers" title="人才招募" />
     <div className="site-container interior-content">
       <PageSection id="open-positions" title="招募職缺">
-        {jobs.map((job) => <article className="job-opening" key={job.id}>
+        {jobs.map((job) => <article className="job-opening" id={contentAnchor.job(job.id)} key={job.id}>
+          <PreviewLabels labels={job.previewLabels} />
           <div className="job-heading"><h3>{job.title}</h3>{job.location && <p>{job.location}</p>}</div>
           <dl className="detail-list">
             {[

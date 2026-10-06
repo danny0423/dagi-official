@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin/guard";
 import { contentOrderBy } from "@/lib/admin/content";
+import { publicLinkOf } from "@/lib/admin/public-url";
 import { formatDateTime } from "@/lib/admin/format";
 import { ContentTable } from "@/app/admin/_components/content-table";
 import { Notice, PageHeader, type SearchParams } from "@/app/admin/_components/page-parts";
@@ -32,6 +33,7 @@ export default async function JobsPage({ searchParams }: { searchParams: SearchP
         kind="jobs"
         rows={rows}
         titleOf={(row) => row.title}
+        publicLink={(row) => publicLinkOf("jobs", row)}
         emptyText="還沒有職缺"
         columns={[
           {

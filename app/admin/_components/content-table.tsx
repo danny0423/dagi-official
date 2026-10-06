@@ -1,11 +1,13 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ActionButton } from "@/app/admin/_components/action-button";
-import { EmptyState, PublishedBadge } from "@/app/admin/_components/page-parts";
+import { EmptyState, PublishedBadge, ViewOnSiteLink } from "@/app/admin/_components/page-parts";
 import { deleteContent, moveContent, togglePublished } from "@/app/admin/_actions/content";
 import { CONTENT_KINDS, type ContentKind } from "@/lib/admin/content";
+import type { PublicLink } from "@/lib/admin/public-url";
 
-// 五種內容共用的列表：自訂欄位＋上下架、上移／下移、編輯、刪除。
+// 五種內容共用的列表：自訂欄位＋上下架、上移／下移、編輯、前台查看、刪除。
+// publicLink：這一列在前台的網址（各列表頁用 lib/admin/public-url.ts 的 publicLinkOf() 產生）。
 // 每格都帶 data-label：手機寬度（admin.css 900px 以下）表格改成一筆一張卡片，用它當欄位名稱。
 export type Column<T> = { header: string; cell: (row: T) => ReactNode; className?: string };
 
@@ -14,12 +16,14 @@ export function ContentTable<T extends { id: number; published: boolean }>({
   rows,
   columns,
   titleOf,
+  publicLink,
   emptyText,
 }: {
   kind: ContentKind;
   rows: T[];
   columns: Column<T>[];
   titleOf: (row: T) => string;
+  publicLink: (row: T) => PublicLink;
   emptyText: ReactNode;
 }) {
   if (rows.length === 0) return <EmptyState>{emptyText}</EmptyState>;
@@ -80,6 +84,7 @@ export function ContentTable<T extends { id: number; published: boolean }>({
                   <Link href={`${basePath}/${row.id}`} className="adm-btn adm-btn-sm" aria-label={`編輯「${titleOf(row)}」`}>
                     編輯
                   </Link>
+                  <ViewOnSiteLink link={publicLink(row)} title={titleOf(row)} />
                   <ActionButton
                     action={deleteContent.bind(null, kind, row.id)}
                     label="刪除"

@@ -3,7 +3,7 @@ import { PageHeading } from "@/components/page-heading";
 import { PageSection } from "@/components/page-section";
 import { InquiryForm } from "@/components/inquiry-form";
 import { PlaceholderText } from "@/components/placeholder-text";
-import { requireLaunched } from "@/lib/launch";
+import { requireLaunched } from "@/lib/preview";
 import { getSiteCompany } from "@/lib/site-data";
 import { pageMetadata } from "@/lib/seo/metadata";
 
@@ -16,8 +16,8 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export default function Page() {
-  requireLaunched("/partners");
+export default async function Page() {
+  await requireLaunched("/partners");
   return <>
     <PageHeading path="/partners" title="協力廠商合作" />
     <div className="site-container interior-content">

@@ -4,7 +4,8 @@ import { ArrowIcon } from "@/components/arrow-icon";
 import { CompanyContact } from "@/components/company-contact";
 import { PhotoPlaceholder } from "@/components/photo-placeholder";
 import { PlaceholderText } from "@/components/placeholder-text";
-import { isLaunched, requireLaunched } from "@/lib/launch";
+import { isLaunched } from "@/lib/launch";
+import { requireLaunched } from "@/lib/preview";
 import { getFeaturedProjects, getSiteCompany } from "@/lib/site-data";
 import { joinPresent, projectStatusText } from "@/lib/site-data/format";
 import { pageMetadata } from "@/lib/seo/metadata";
@@ -32,7 +33,7 @@ const principles = [
 ];
 
 export default async function Page() {
-  requireLaunched("/");
+  await requireLaunched("/");
   // 精選工程區塊只在 /projects 開放時顯示（見下方），沒開放就不查工程資料
   const [company, featured] = await Promise.all([
     getSiteCompany(),

@@ -3,8 +3,11 @@ import { AboutNavigation, PageHeading } from "@/components/page-heading";
 import { PageSection } from "@/components/page-section";
 import { PhotoPlaceholder } from "@/components/photo-placeholder";
 import { PlaceholderText } from "@/components/placeholder-text";
-import { requireLaunched } from "@/lib/launch";
-import { getPublicCertifications, getSiteCompany } from "@/lib/site-data";
+import { PreviewLabels } from "@/components/preview-labels";
+import { contentAnchor } from "@/lib/content";
+import { isAdminPreview, requireLaunched } from "@/lib/preview";
+import { getPublicCertifications, getSiteCompany, type PublicCertification } from "@/lib/site-data";
+import { getPreviewCertifications, type MaybePreview } from "@/lib/site-data/preview";
 import { formatDisplayDate } from "@/lib/site-data/format";
 import { pageMetadata } from "@/lib/seo/metadata";
 
@@ -18,9 +21,14 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Page() {
-  requireLaunched("/about/license");
-  // 證照：已上架且未過期（有效期限空白＝無期限），見 lib/site-data 的 getPublicCertifications()
-  const [company, certifications] = await Promise.all([getSiteCompany(), getPublicCertifications()]);
+  await requireLaunched("/about/license");
+  // 證照：已上架且未過期（有效期限空白＝無期限），見 lib/site-data 的 getPublicCertifications()。
+  // 登入後台的人看到全部證照，未上架、已過期的加標籤（lib/preview.ts）。每張卡片有錨點 id，後台「前台查看」會連到 #cert-{id}
+  const preview = await isAdminPreview();
+  const [company, certifications] = await Promise.all([
+    getSiteCompany(),
+    preview ? getPreviewCertifications() : getPublicCertifications() as Promise<MaybePreview<PublicCertification>[]>,
+  ]);
   const rows = [
     ["公司名稱", company.name], ["統一編號", company.taxId],
     ["營造業類別與等級", `綜合營造業${company.grade}`],
@@ -37,7 +45,8 @@ export default async function Page() {
         </tbody></table>
       </PageSection>
       <PageSection id="certifications" title="證照與認證">
-        {certifications.map((certification) => <article className="certificate-card" key={certification.id}>
+        {certifications.map((certification) => <article className="certificate-card" id={contentAnchor.certification(certification.id)} key={certification.id}>
+          <PreviewLabels labels={certification.previewLabels} />
           {certification.image && <PhotoPlaceholder description="證照影本" sizes="(max-width: 767px) 100vw, 50vw"
             photo={{ src: certification.image.url, alt: certification.image.alt || `${certification.name}證書` }} />}
           <h3>{certification.name}</h3>

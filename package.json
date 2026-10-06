@@ -12,7 +12,9 @@
     "postinstall": "prisma generate",
     "db:up": "docker compose up -d db",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:seed:samples": "tsx --tsconfig prisma/tsconfig.scripts.json prisma/seed-samples.ts",
+    "db:clear:samples": "tsx --tsconfig prisma/tsconfig.scripts.json prisma/clear-samples.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1145.0",

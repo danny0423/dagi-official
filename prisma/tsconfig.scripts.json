@@ -1,0 +1,13 @@
+// 給 tsx 執行的資料腳本用（npm run db:seed:samples、db:clear:samples；用 tsx --tsconfig 指定）。
+// lib/storage 等模組開頭有 import "server-only"，Next.js 會在伺服器端把它換成空模組，
+// 但 tsx 直接執行時找不到這個套件。這裡把它對到 next 內建的同一個空模組（next/dist/compiled/server-only/empty.js），
+// 腳本才能沿用 lib/storage 存圖片。只影響用這個設定檔執行的腳本，網站本身與 tsc 仍用根目錄的 tsconfig.json。
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["../*"],
+      "server-only": ["../node_modules/next/dist/compiled/server-only/empty.js"]
+    }
+  }
+}

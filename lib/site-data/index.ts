@@ -12,13 +12,17 @@ import {
   fetchPublishedCertifications,
   fetchPublishedJobs,
   fetchPublishedNews,
+  fetchPublishedNewsBySlug,
   fetchPublishedProjectBySlug,
   fetchPublishedProjects,
+  type StoredCertification,
   type StoredImage,
   type StoredJob,
   type StoredNews,
+  type StoredNewsDetail,
   type StoredProjectDetail,
   type StoredProjectSummary,
+  type StoredTeamMember,
 } from "@/lib/site-data/queries";
 import { SITE_TAGS } from "@/lib/site-data/tags";
 
@@ -30,10 +34,12 @@ import { SITE_TAGS } from "@/lib/site-data/tags";
 // 2. 資料本身用 unstable_cache 快取並掛 SITE_TAGS 標籤，大部分請求不會打到資料庫。
 //    後台 server action 寫入成功後呼叫 updateTag(SITE_TAGS.xxx)，下一個請求就讀到新資料（不會先給舊資料）。
 //    沒開 Cache Components（cacheComponents），所以不能用 "use cache"／cacheTag；理由見文件。
-// 3. REVALIDATE_SECONDS 是保險：有人不經後台直接改資料庫時，最晚這麼久之後也會更新。
+// 3. REVALIDATE_SECONDS 是保險：有人不經後台直接改資料庫時，最晚這麼久之後也會更新；
+//    要立刻更新就到後台儀表板按「重新整理前台快取」（app/admin/_actions/cache.ts）。
 // 4. React cache() 讓同一個請求裡（layout、頁面、generateMetadata）重複呼叫只算一次。
 // 注意：unstable_cache 會把結果 JSON 序列化，所以 queries.ts 一律回傳字串日期；圖片網址在這裡（快取外）才組。
 // 快取存在這個 Next 程序的記憶體與 .next/cache；之後若開多個容器，要改用共用的 cacheHandler，否則各容器各自失效。
+// 登入者預覽（含未上架等訪客看不到的內容）不經過這裡的快取，查詢在 lib/site-data/preview.ts；這裡的 toXxx() 轉換函式兩邊共用。
 
 const REVALIDATE_SECONDS = 3600;
 
@@ -76,13 +82,17 @@ const cachedTeamMembers = unstable_cache(() => fetchPublicTeamMembers(), ["site-
   revalidate: REVALIDATE_SECONDS,
 });
 
-export const getPublicTeamMembers = cache(async (): Promise<PublicTeamMember[]> => {
-  await connection();
-  return (await cachedTeamMembers()).map((member) => ({
+export function toTeamMember(member: StoredTeamMember): PublicTeamMember {
+  return {
     ...member,
     licenses: (member.licenses ?? "").split("\n").map((line) => line.trim()).filter(Boolean),
     photo: toImage(member.photo),
-  }));
+  };
+}
+
+export const getPublicTeamMembers = cache(async (): Promise<PublicTeamMember[]> => {
+  await connection();
+  return (await cachedTeamMembers()).map(toTeamMember);
 });
 
 // ───── 證照：已上架且未過期 ─────
@@ -103,13 +113,17 @@ const cachedCertifications = unstable_cache(() => fetchPublishedCertifications()
   revalidate: REVALIDATE_SECONDS,
 });
 
+export function toCertification(certification: StoredCertification): PublicCertification {
+  return { ...certification, image: toImage(certification.image) };
+}
+
 /** 快取只存「已上架」的證照；是否過期在每次請求時依台北時間的今天判斷，過期當天之後就不顯示。 */
 export const getPublicCertifications = cache(async (): Promise<PublicCertification[]> => {
   await connection();
   const today = todayInTaipei();
   return (await cachedCertifications())
     .filter((certification) => isCertificationValid(certification.expiresOn, today))
-    .map((certification) => ({ ...certification, image: toImage(certification.image) }));
+    .map(toCertification);
 });
 
 // ───── 工程實績 ─────
@@ -117,8 +131,12 @@ export const getPublicCertifications = cache(async (): Promise<PublicCertificati
 export type ProjectSummary = Omit<StoredProjectSummary, "cover"> & { statusLabel: string; cover: SiteImage | null };
 export type ProjectDetail = ProjectSummary & Pick<StoredProjectDetail, "client" | "description"> & { gallery: SiteImage[] };
 
-function toProjectSummary(project: StoredProjectSummary): ProjectSummary {
+export function toProjectSummary(project: StoredProjectSummary): ProjectSummary {
   return { ...project, statusLabel: projectStatusLabel[project.status], cover: toImage(project.cover) };
+}
+
+export function toProjectDetail(detail: StoredProjectDetail): ProjectDetail {
+  return { ...toProjectSummary(detail), client: detail.client, description: detail.description, gallery: detail.gallery.map((image) => toImage(image)!) };
 }
 
 const cachedProjects = unstable_cache(() => fetchPublishedProjects(), ["site-data", "projects"], {
@@ -151,8 +169,7 @@ export const getProjectBySlug = cache(async (slug: string): Promise<ProjectDetai
   const projects = await getPublishedProjects();
   if (!projects.some((project) => project.slug === slug)) return null;
   const detail = await cachedProjectDetail(slug);
-  if (!detail) return null;
-  return { ...toProjectSummary(detail), client: detail.client, description: detail.description, gallery: detail.gallery.map((image) => toImage(image)!) };
+  return detail ? toProjectDetail(detail) : null;
 });
 
 /**
@@ -176,16 +193,38 @@ export function decodeSlugParam(raw: string): string | null {
 // ───── 最新消息 ─────
 
 export type PublicNews = StoredNews;
+export type NewsDetail = Omit<StoredNewsDetail, "cover"> & { cover: SiteImage | null };
+
+export function toNewsDetail(news: StoredNewsDetail): NewsDetail {
+  return { ...news, cover: toImage(news.cover) };
+}
 
 const cachedNews = unstable_cache(() => fetchPublishedNews(), ["site-data", "news"], {
   tags: [SITE_TAGS.news],
   revalidate: REVALIDATE_SECONDS,
 });
 
-/** 已上架的最新消息，依日期由新到舊。 */
+const cachedNewsDetail = unstable_cache((slug: string) => fetchPublishedNewsBySlug(slug), ["site-data", "news-detail"], {
+  tags: [SITE_TAGS.news, SITE_TAGS.media],
+  revalidate: REVALIDATE_SECONDS,
+});
+
+/** 已上架的最新消息（列表、sitemap 用），依日期由新到舊。 */
 export const getPublishedNews = cache(async (): Promise<PublicNews[]> => {
   await connection();
   return cachedNews();
+});
+
+/**
+ * 依網址代稱取已上架的單篇消息（含內文、封面）；找不到回傳 null。
+ * 跟 getProjectBySlug 一樣先用已快取的列表確認代稱存在才查單筆，亂打的網址不會各自建立一筆快取。
+ * slug 要先用 decodeSlugParam() 解碼。
+ */
+export const getNewsBySlug = cache(async (slug: string): Promise<NewsDetail | null> => {
+  const news = await getPublishedNews();
+  if (!news.some((item) => item.slug === slug)) return null;
+  const detail = await cachedNewsDetail(slug);
+  return detail ? toNewsDetail(detail) : null;
 });
 
 // ───── 職缺 ─────

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PageHeading } from "@/components/page-heading";
 import { PageSection } from "@/components/page-section";
 import { PlaceholderText } from "@/components/placeholder-text";
-import { requireLaunched } from "@/lib/launch";
+import { requireLaunched } from "@/lib/preview";
 import { getSiteCompany } from "@/lib/site-data";
 import { pageMetadata } from "@/lib/seo/metadata";
 
@@ -15,8 +15,8 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export default function Page() {
-  requireLaunched("/safety-quality");
+export default async function Page() {
+  await requireLaunched("/safety-quality");
   return <>
     <PageHeading path="/safety-quality" title="工安與品質管理" />
     <div className="site-container interior-content">

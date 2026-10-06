@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PageHeading } from "@/components/page-heading";
 import { PageSection } from "@/components/page-section";
 import { PlaceholderText } from "@/components/placeholder-text";
-import { requireLaunched } from "@/lib/launch";
+import { requireLaunched } from "@/lib/preview";
 import { getSiteCompany } from "@/lib/site-data";
 import { pageMetadata } from "@/lib/seo/metadata";
 
@@ -15,8 +15,8 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export default function Page() {
-  requireLaunched("/privacy");
+export default async function Page() {
+  await requireLaunched("/privacy");
   return <>
     <PageHeading path="/privacy" title="隱私權政策" />
     <div className="site-container interior-content privacy-content">

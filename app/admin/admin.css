@@ -100,6 +100,18 @@
 .adm-btn-danger:hover { background: var(--adm-err-bg); }
 .adm-btn-sm { min-height: 2rem; padding: 0.15rem 0.6rem; font-size: 0.8125rem; }
 .adm-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+/* 「前台查看」連結＋旁邊的狀態小字（page-parts.tsx 的 ViewOnSiteLink），兩者不拆開換行 */
+.adm-view-site { display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; }
+.adm-view-site-icon { font-size: 0.85em; line-height: 1; }
+.adm-view-site-status { font-size: 0.75rem; color: var(--adm-muted); }
+.adm-view-site-status.is-preview { color: var(--adm-warn-ink); }
+/* 列表操作欄（content-table.tsx）：編輯／前台查看／刪除排成一列，狀態小字自己一行放在按鈕下面。
+   寬螢幕給操作欄最小寬度，三顆按鈕才不會被擠成直排；窄一點的寬度照常換行（表格本來就可以左右捲動）。 */
+.adm-table .adm-cell-actions .adm-view-site { display: contents; }
+.adm-table .adm-cell-actions .adm-view-site-status { order: 99; flex-basis: 100%; margin-top: -0.2rem; white-space: normal; }
+@media (min-width: 1200px) {
+  .adm-table td.adm-cell-actions { min-width: 15rem; }
+}
 
 /* ───── 表單 ───── */
 .adm-form { display: flex; flex-direction: column; gap: 1.25rem; }

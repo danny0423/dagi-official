@@ -5,23 +5,25 @@ import { MultilineText } from "@/components/multiline-text";
 import { PageHeading } from "@/components/page-heading";
 import { PageSection } from "@/components/page-section";
 import { PhotoPlaceholder } from "@/components/photo-placeholder";
-import { requireLaunched } from "@/lib/launch";
+import { PreviewLabels } from "@/components/preview-labels";
+import { isAdminPreview, requireLaunched } from "@/lib/preview";
 import { sampleProject } from "@/lib/placeholder-project";
 import { decodeSlugParam, getProjectBySlug, getPublishedProjects, getSiteCompany, type ProjectDetail } from "@/lib/site-data";
+import { getPreviewProjectBySlug, type MaybePreview } from "@/lib/site-data/preview";
 import { joinPresent, projectPeriod, projectStatusText } from "@/lib/site-data/format";
 import { notFoundMetadata, pageMetadata } from "@/lib/seo/metadata";
 import { SampleProject } from "./sample-project";
 
-// 單案頁：讀已上架的工程（lib/site-data 的 getProjectBySlug）。
+// 單案頁：讀已上架的工程（lib/site-data 的 getProjectBySlug）。登入後台的人連未上架的也看得到，頁面上加標籤（lib/preview.ts）；訪客仍是 404。
 // 資料庫一件已上架的工程都沒有時，/projects/example-project 顯示範例專案（只供版型預覽，即使 /projects 開放了也不收錄）；
 // 有真實工程之後範例網址就回 404。
 
-type Resolved = { kind: "project"; project: ProjectDetail } | { kind: "sample" } | null;
+type Resolved = { kind: "project"; project: MaybePreview<ProjectDetail> } | { kind: "sample" } | null;
 
 async function resolveProject(rawSlug: string): Promise<Resolved> {
   const slug = decodeSlugParam(rawSlug);
   if (!slug) return null;
-  const project = await getProjectBySlug(slug);
+  const project = (await isAdminPreview()) ? await getPreviewProjectBySlug(slug) : await getProjectBySlug(slug);
   if (project) return { kind: "project", project };
   if (slug === sampleProject.slug && (await getPublishedProjects()).length === 0) return { kind: "sample" };
   return null;
@@ -33,7 +35,7 @@ export async function generateMetadata({ params }: PageProps<"/projects/[slug]">
   const resolved = await resolveProject(slug);
   if (!resolved) return notFoundMetadata;
   if (resolved.kind === "sample") { // check-launch: fallback projects
-    const metadata = pageMetadata({
+    const metadata = await pageMetadata({
       path: `/projects/${sampleProject.slug}`,
       title: "【待填：工程名稱】｜範例專案",
       description: "工程實績單案介紹：工程概況、施工重點與工程照片。",
@@ -50,7 +52,7 @@ export async function generateMetadata({ params }: PageProps<"/projects/[slug]">
 }
 
 export default async function Page({ params }: PageProps<"/projects/[slug]">) {
-  requireLaunched("/projects");
+  await requireLaunched("/projects");
   const { slug } = await params;
   const resolved = await resolveProject(slug);
   // 找不到的工程網址交給 app/not-found.tsx（中文 404，含頁首頁尾）
@@ -62,6 +64,7 @@ export default async function Page({ params }: PageProps<"/projects/[slug]">) {
   const photos = [...(project.cover ? [project.cover] : []), ...project.gallery];
   return <>
     <PageHeading path={path} title={project.title} parent={{ href: "/projects", label: "工程實績" }}>
+      <PreviewLabels labels={project.previewLabels} />
       {project.summary && <p>{project.summary}</p>}
     </PageHeading>
     <div className="site-container interior-content">

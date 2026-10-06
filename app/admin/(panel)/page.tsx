@@ -3,12 +3,16 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { todayInTaipei } from "@/lib/admin/format";
 import { hasRole, requireAdmin } from "@/lib/admin/guard";
+import { countSampleData, SAMPLE_PREFIX, totalSampleCount } from "@/lib/sample-data";
 import { companyLaunchIssues, contentLaunchIssues } from "@/lib/site-data/launch-check";
 import { countPublicContent, fetchCompanyRow } from "@/lib/site-data/queries";
+import { refreshSiteCache } from "@/app/admin/_actions/cache";
+import { ActionButton } from "@/app/admin/_components/action-button";
 import { Notice, PageHeader, type SearchParams } from "@/app/admin/_components/page-parts";
 
-// 後台首頁（儀表板）：收件匣未處理數量、各內容筆數、上線前檢查。功能清單見 docs/tech-architecture.md F4～F8。
+// 後台首頁（儀表板）：收件匣未處理數量、各內容筆數、上線前檢查、重新整理前台快取（ADMIN）。功能清單見 docs/tech-architecture.md F4～F8。
 // 上線前檢查直接查資料庫（不經前台快取），是權威的檢查結果：正式部署 build 時連不到資料庫，npm run check:launch 只能檢查原始碼。
+// 範例資料（npm run db:seed:samples）會讓內容檢查看起來都有資料，所以另外提醒還有幾筆範例（規則見 lib/sample-data.ts）。
 export const metadata: Metadata = { title: "儀表板" };
 
 const EXPIRY_WARNING_DAYS = 60;
@@ -17,7 +21,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
   const user = await requireAdmin();
   const { denied } = await searchParams;
 
-  const [inquiries, vendors, projects, news, jobs, team, certifications, mediaCount, expiringCerts, noConsent, companyRow, publicCounts] =
+  const [inquiries, vendors, projects, news, jobs, team, certifications, mediaCount, expiringCerts, noConsent, companyRow, publicCounts, sampleCounts] =
     await Promise.all([
       prisma.inquiry.groupBy({ by: ["status"], _count: { _all: true } }),
       prisma.vendorApplication.groupBy({ by: ["status"], _count: { _all: true } }),
@@ -31,9 +35,11 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
       prisma.teamMember.count({ where: { consentToPublish: false } }),
       fetchCompanyRow(),
       countPublicContent(todayInTaipei()),
+      countSampleData(prisma),
     ]);
   const companyIssues = companyLaunchIssues(companyRow);
   const contentIssues = contentLaunchIssues(publicCounts);
+  const sampleTotal = totalSampleCount(sampleCounts);
 
   const statusCount = (rows: { status: string; _count: { _all: number } }[], status: string) =>
     rows.find((row) => row.status === status)?._count._all ?? 0;
@@ -95,7 +101,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
 
       <section className="flex flex-col gap-2" aria-labelledby="launch-check-title">
         <h2 id="launch-check-title" className="adm-section-title">上線前檢查</h2>
-        {companyIssues.length === 0 && contentIssues.length === 0 && (
+        {sampleTotal > 0 && (
+          <p className="adm-msg adm-msg-warn">
+            資料庫裡有 {sampleTotal} 筆範例資料（標題或名稱以「{SAMPLE_PREFIX}」開頭，含圖片 {sampleCounts.media} 張），下面的內容檢查會把它們當成有資料。
+            上線前請開發人員執行 npm run db:clear:samples 清除。
+          </p>
+        )}
+        {companyIssues.length === 0 && contentIssues.length === 0 && sampleTotal === 0 && (
           <p className="adm-msg adm-msg-ok">已開放的頁面用到的公司資料都已填寫，內容區塊也都有資料，前台不會因為資料庫空白而顯示待填。</p>
         )}
         {companyIssues.length > 0 && (
@@ -136,6 +148,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: Se
               <Link href="/admin/team">前往團隊成員</Link>
             </p>
           )}
+        </section>
+      )}
+
+      {hasRole(user, "ADMIN") && (
+        <section className="flex flex-col gap-2" aria-labelledby="site-cache-title">
+          <h2 id="site-cache-title" className="adm-section-title">前台快取</h2>
+          <p className="adm-hint">
+            前台的資料會快取最久 1 小時。在後台存檔會自動更新，不用按這裡；有人直接改資料庫（例如匯入範例資料、手動修正資料）後前台沒有變化時，按這個按鈕讓前台立刻讀到最新資料。
+          </p>
+          <div>
+            <ActionButton action={refreshSiteCache} label="重新整理前台快取" />
+          </div>
         </section>
       )}
     </div>

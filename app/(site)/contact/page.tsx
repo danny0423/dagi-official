@@ -4,7 +4,7 @@ import { PageSection } from "@/components/page-section";
 import { InquiryForm } from "@/components/inquiry-form";
 import { CompanyContact } from "@/components/company-contact";
 import { PlaceholderText } from "@/components/placeholder-text";
-import { requireLaunched } from "@/lib/launch";
+import { requireLaunched } from "@/lib/preview";
 import { getSiteCompany } from "@/lib/site-data";
 import { pageMetadata } from "@/lib/seo/metadata";
 
@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Page() {
-  requireLaunched("/contact");
+  await requireLaunched("/contact");
   const company = await getSiteCompany();
   return <>
     <PageHeading path="/contact" title="聯絡我們／工程洽詢" />

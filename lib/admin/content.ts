@@ -8,10 +8,11 @@ import { SITE_TAGS } from "@/lib/site-data/tags";
 
 // 五種可上下架、可排序的內容：共用的設定與資料庫操作
 // siteTag：前台資料快取（lib/site-data）的標籤，寫入後由 revalidateContent() 讓它失效
+// 各內容在前台的網址（後台「前台查看」連結）在 lib/admin/public-url.ts
 
 export const CONTENT_KINDS = {
   projects: { label: "工程實績", adminPath: "/admin/projects", siteTag: SITE_TAGS.projects, publicPaths: ["/", "/projects", "/projects/[slug]"] },
-  news: { label: "最新消息", adminPath: "/admin/news", siteTag: SITE_TAGS.news, publicPaths: ["/", "/news"] },
+  news: { label: "最新消息", adminPath: "/admin/news", siteTag: SITE_TAGS.news, publicPaths: ["/", "/news", "/news/[slug]"] },
   jobs: { label: "職缺", adminPath: "/admin/jobs", siteTag: SITE_TAGS.jobs, publicPaths: ["/careers"] },
   team: { label: "團隊成員", adminPath: "/admin/team", siteTag: SITE_TAGS.team, publicPaths: ["/about/team"] },
   certifications: { label: "證照", adminPath: "/admin/certifications", siteTag: SITE_TAGS.certifications, publicPaths: ["/about/license"] },

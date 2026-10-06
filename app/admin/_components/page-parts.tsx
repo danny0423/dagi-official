@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { PERMISSION_DENIED_MESSAGE } from "@/lib/admin/action-state";
+import type { PublicLink } from "@/lib/admin/public-url";
 
 // 後台頁面共用的小元件（server component）
 
@@ -58,6 +59,28 @@ export function PublishedBadge({ published }: { published: boolean }) {
     <span className="adm-badge adm-badge-ok">上架中</span>
   ) : (
     <span className="adm-badge">未上架</span>
+  );
+}
+
+// 「前台查看」：新分頁開啟這筆內容在前台的位置（網址規則在 lib/admin/public-url.ts）。
+// 訪客看不到的內容也能點，登入後台的人會看到預覽（lib/preview.ts）；旁邊的小字說明訪客看不看得到。
+export function ViewOnSiteLink({ link, title }: { link: PublicLink; title: string }) {
+  const status = link.guestVisible ? "前台" : "預覽（訪客看不到）";
+  return (
+    <span className="adm-view-site">
+      <a
+        href={link.href}
+        target="_blank"
+        rel="noopener"
+        className="adm-btn adm-btn-sm"
+        aria-label={`前台查看「${title}」，${status}，在新分頁開啟`}
+      >
+        前台查看<span aria-hidden="true" className="adm-view-site-icon">↗</span>
+      </a>
+      <span className={link.guestVisible ? "adm-view-site-status" : "adm-view-site-status is-preview"} aria-hidden="true">
+        {status}
+      </span>
+    </span>
   );
 }
 

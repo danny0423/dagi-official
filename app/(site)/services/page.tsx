@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { PageHeading } from "@/components/page-heading";
 import { InquiryLink, PageSection } from "@/components/page-section";
 import { PlaceholderText } from "@/components/placeholder-text";
-import { requireLaunched } from "@/lib/launch";
+import { requireLaunched } from "@/lib/preview";
 import { getSiteCompany } from "@/lib/site-data";
 import { pageMetadata } from "@/lib/seo/metadata";
 
@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Page() {
-  requireLaunched("/services");
+  await requireLaunched("/services");
   const company = await getSiteCompany();
   return <>
     <PageHeading path="/services" title="承攬業務" />

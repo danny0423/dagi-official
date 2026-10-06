@@ -12,6 +12,7 @@ import type { CompanyRow } from "@/lib/site-data/company";
 // （日期轉成 YYYY-MM-DD 字串、圖片只帶 storageKey），因為 lib/site-data/index.ts 的快取會 JSON 序列化。
 // 圖片網址不在這裡組：網址依 STORAGE_DRIVER 決定，由 index.ts 在每次請求時用 lib/storage 的 getUrl() 組，換儲存體不會讀到舊網址。
 // 這個檔案不依賴 Next.js，scripts/ 可以直接呼叫（例如 check-launch、驗證用的小腳本）；db 參數讓腳本傳入自己設定逾時的連線。
+// 名稱帶 ForPreview 的查詢只給登入者預覽用（lib/site-data/preview.ts），會含未上架等訪客看不到的資料，不可以放進公開快取。
 
 type Db = Pick<PrismaClient, "companySettings" | "teamMember" | "certification" | "project" | "news" | "job">;
 
@@ -69,20 +70,23 @@ export type StoredTeamMember = {
   photo: StoredImage | null;
 };
 
+const teamMemberSelect = {
+  id: true,
+  name: true,
+  title: true,
+  licenses: true,
+  bio: true,
+  experience: true,
+  photo: { select: imageSelect },
+} as const;
+
 export async function fetchPublicTeamMembers(db: Db = prisma): Promise<StoredTeamMember[]> {
-  return db.teamMember.findMany({
-    where: publicTeamMemberWhere,
-    orderBy,
-    select: {
-      id: true,
-      name: true,
-      title: true,
-      licenses: true,
-      bio: true,
-      experience: true,
-      photo: { select: imageSelect },
-    },
-  });
+  return db.teamMember.findMany({ where: publicTeamMemberWhere, orderBy, select: teamMemberSelect });
+}
+
+/** 預覽用：全部成員（含未上架、未同意公開），附上判斷標籤用的欄位。 */
+export async function fetchTeamMembersForPreview(db: Db = prisma): Promise<(StoredTeamMember & { published: boolean; consentToPublish: boolean })[]> {
+  return db.teamMember.findMany({ orderBy, select: { ...teamMemberSelect, published: true, consentToPublish: true } });
 }
 
 // ───── 證照（只篩「已上架」；過期與否由呼叫端依當天日期判斷） ─────
@@ -97,20 +101,24 @@ export type StoredCertification = {
   image: StoredImage | null;
 };
 
+const certificationSelect = {
+  id: true,
+  name: true,
+  issuer: true,
+  certificateNumber: true,
+  expiresOn: true,
+  note: true,
+  image: { select: imageSelect },
+} as const;
+
 export async function fetchPublishedCertifications(db: Db = prisma): Promise<StoredCertification[]> {
-  const rows = await db.certification.findMany({
-    where: publishedWhere,
-    orderBy,
-    select: {
-      id: true,
-      name: true,
-      issuer: true,
-      certificateNumber: true,
-      expiresOn: true,
-      note: true,
-      image: { select: imageSelect },
-    },
-  });
+  const rows = await db.certification.findMany({ where: publishedWhere, orderBy, select: certificationSelect });
+  return rows.map((row) => ({ ...row, expiresOn: dateOnly(row.expiresOn) }));
+}
+
+/** 預覽用：全部證照（含未上架；過期與否同樣由呼叫端判斷）。 */
+export async function fetchCertificationsForPreview(db: Db = prisma): Promise<(StoredCertification & { published: boolean })[]> {
+  const rows = await db.certification.findMany({ orderBy, select: { ...certificationSelect, published: true } });
   return rows.map((row) => ({ ...row, expiresOn: dateOnly(row.expiresOn) }));
 }
 
@@ -184,46 +192,105 @@ export async function fetchPublishedProjects(db: Db = prisma): Promise<StoredPro
   return rows.map(toProjectSummary);
 }
 
+/** 預覽用：全部工程（含未上架）。 */
+export async function fetchProjectsForPreview(db: Db = prisma): Promise<(StoredProjectSummary & { published: boolean })[]> {
+  const rows = await db.project.findMany({ orderBy, select: { ...projectSummarySelect, published: true } });
+  return rows.map((row) => ({ ...toProjectSummary(row), published: row.published }));
+}
+
 export type StoredProjectDetail = StoredProjectSummary & {
   client: string | null;
   description: string | null;
   gallery: StoredImage[];
 };
 
-/** 已上架的單一工程（含圖庫）；找不到或未上架回傳 null。 */
-export async function fetchPublishedProjectBySlug(slug: string, db: Db = prisma): Promise<StoredProjectDetail | null> {
-  const row = await db.project.findFirst({
-    where: { ...publishedWhere, slug },
-    select: {
-      ...projectSummarySelect,
-      client: true,
-      description: true,
-      images: { orderBy: { sortOrder: "asc" }, select: { media: { select: imageSelect } } },
-    },
-  });
-  if (!row) return null;
+const projectDetailSelect = {
+  ...projectSummarySelect,
+  client: true,
+  description: true,
+  images: { orderBy: { sortOrder: "asc" as const }, select: { media: { select: imageSelect } } },
+} as const;
+
+type ProjectDetailRow = Parameters<typeof toProjectSummary>[0] & {
+  client: string | null;
+  description: string | null;
+  images: { media: StoredImage }[];
+};
+
+function toProjectDetail(row: ProjectDetailRow): StoredProjectDetail {
   const { client, description, images, ...summary } = row;
   return { ...toProjectSummary(summary), client, description, gallery: images.map((image) => image.media) };
 }
 
-// ───── 最新消息（目前前台只有列表，沒有單篇頁，所以不帶內文） ─────
+/** 已上架的單一工程（含圖庫）；找不到或未上架回傳 null。 */
+export async function fetchPublishedProjectBySlug(slug: string, db: Db = prisma): Promise<StoredProjectDetail | null> {
+  const row = await db.project.findFirst({ where: { ...publishedWhere, slug }, select: projectDetailSelect });
+  return row ? toProjectDetail(row) : null;
+}
+
+/** 預覽用：單一工程（不論是否上架）；找不到回傳 null。 */
+export async function fetchProjectBySlugForPreview(slug: string, db: Db = prisma): Promise<(StoredProjectDetail & { published: boolean }) | null> {
+  const row = await db.project.findFirst({ where: { slug }, select: { ...projectDetailSelect, published: true } });
+  if (!row) return null;
+  const { published, ...detail } = row;
+  return { ...toProjectDetail(detail), published };
+}
+
+// ───── 最新消息（列表不帶內文；內文與封面在單篇頁才查） ─────
 
 export type StoredNews = {
   id: number;
   slug: string;
   title: string;
   summary: string | null;
+  /** YYYY-MM-DD，前台顯示的消息日期 */
   publishedAt: string;
+  /** ISO 時間，給 sitemap 的 lastModified */
+  updatedAt: string;
 };
 
+export type StoredNewsDetail = StoredNews & {
+  content: string;
+  cover: StoredImage | null;
+};
+
+const newsSelect = { id: true, slug: true, title: true, summary: true, publishedAt: true, updatedAt: true } as const;
+const newsDetailSelect = { ...newsSelect, content: true, coverImage: { select: imageSelect } } as const;
+// 依前台顯示的日期由新到舊；同一天再依後台排序
+const newsOrderBy = [{ publishedAt: "desc" as const }, ...orderBy];
+
+type NewsRow = Omit<StoredNews, "publishedAt" | "updatedAt"> & { publishedAt: Date; updatedAt: Date };
+
+function toStoredNews(row: NewsRow): StoredNews {
+  const { id, slug, title, summary, publishedAt, updatedAt } = row;
+  return { id, slug, title, summary, publishedAt: dateOnly(publishedAt)!, updatedAt: updatedAt.toISOString() };
+}
+
+function toStoredNewsDetail(row: NewsRow & { content: string; coverImage: StoredImage | null }): StoredNewsDetail {
+  return { ...toStoredNews(row), content: row.content, cover: row.coverImage };
+}
+
 export async function fetchPublishedNews(db: Db = prisma): Promise<StoredNews[]> {
-  // 依前台顯示的日期由新到舊；同一天再依後台排序
-  const rows = await db.news.findMany({
-    where: publishedWhere,
-    orderBy: [{ publishedAt: "desc" }, ...orderBy],
-    select: { id: true, slug: true, title: true, summary: true, publishedAt: true },
-  });
-  return rows.map((row) => ({ ...row, publishedAt: dateOnly(row.publishedAt)! }));
+  const rows = await db.news.findMany({ where: publishedWhere, orderBy: newsOrderBy, select: newsSelect });
+  return rows.map(toStoredNews);
+}
+
+/** 預覽用：全部消息（含未上架）。 */
+export async function fetchNewsForPreview(db: Db = prisma): Promise<(StoredNews & { published: boolean })[]> {
+  const rows = await db.news.findMany({ orderBy: newsOrderBy, select: { ...newsSelect, published: true } });
+  return rows.map((row) => ({ ...toStoredNews(row), published: row.published }));
+}
+
+/** 已上架的單篇消息（含內文、封面）；找不到或未上架回傳 null。 */
+export async function fetchPublishedNewsBySlug(slug: string, db: Db = prisma): Promise<StoredNewsDetail | null> {
+  const row = await db.news.findFirst({ where: { ...publishedWhere, slug }, select: newsDetailSelect });
+  return row ? toStoredNewsDetail(row) : null;
+}
+
+/** 預覽用：單篇消息（不論是否上架）；找不到回傳 null。 */
+export async function fetchNewsBySlugForPreview(slug: string, db: Db = prisma): Promise<(StoredNewsDetail & { published: boolean }) | null> {
+  const row = await db.news.findFirst({ where: { slug }, select: { ...newsDetailSelect, published: true } });
+  return row ? { ...toStoredNewsDetail(row), published: row.published } : null;
 }
 
 // ───── 職缺 ─────
@@ -240,22 +307,25 @@ export type StoredJob = {
   benefits: string | null;
 };
 
+const jobSelect = {
+  id: true,
+  title: true,
+  department: true,
+  location: true,
+  employmentType: true,
+  salary: true,
+  description: true,
+  requirements: true,
+  benefits: true,
+} as const;
+
 export async function fetchPublishedJobs(db: Db = prisma): Promise<StoredJob[]> {
-  return db.job.findMany({
-    where: publishedWhere,
-    orderBy,
-    select: {
-      id: true,
-      title: true,
-      department: true,
-      location: true,
-      employmentType: true,
-      salary: true,
-      description: true,
-      requirements: true,
-      benefits: true,
-    },
-  });
+  return db.job.findMany({ where: publishedWhere, orderBy, select: jobSelect });
+}
+
+/** 預覽用：全部職缺（含未上架）。 */
+export async function fetchJobsForPreview(db: Db = prisma): Promise<(StoredJob & { published: boolean })[]> {
+  return db.job.findMany({ orderBy, select: { ...jobSelect, published: true } });
 }
 
 // ───── 上線前檢查用：各種內容在前台有沒有資料（沒有時前台顯示待填範例） ─────

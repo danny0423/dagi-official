@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin/guard";
+import { publicLinkOf } from "@/lib/admin/public-url";
 import { parseId } from "@/lib/admin/validation";
 import { toMediaDTO } from "@/lib/media";
 import { updateProject } from "@/app/admin/_actions/projects";
 import { deleteContent } from "@/app/admin/_actions/content";
 import { ActionButton } from "@/app/admin/_components/action-button";
-import { Notice, PageHeader, type IdParams, type SearchParams } from "@/app/admin/_components/page-parts";
+import { Notice, PageHeader, ViewOnSiteLink, type IdParams, type SearchParams } from "@/app/admin/_components/page-parts";
 import { ProjectForm } from "../project-form";
 
 export const metadata: Metadata = { title: "編輯工程實績" };
@@ -29,12 +30,15 @@ export default async function EditProjectPage({ params, searchParams }: { params
         title={`編輯：${project.title}`}
         back={{ href: "/admin/projects", label: "工程實績列表" }}
         actions={
-          <ActionButton
-            action={deleteContent.bind(null, "projects", project.id)}
-            label="刪除這筆"
-            variant="danger"
-            confirmMessage={`確定要刪除工程實績「${project.title}」？刪除後無法復原。`}
-          />
+          <>
+            <ViewOnSiteLink link={publicLinkOf("projects", project)} title={project.title} />
+            <ActionButton
+              action={deleteContent.bind(null, "projects", project.id)}
+              label="刪除這筆"
+              variant="danger"
+              confirmMessage={`確定要刪除工程實績「${project.title}」？刪除後無法復原。`}
+            />
+          </>
         }
       />
       <Notice code={notice} />

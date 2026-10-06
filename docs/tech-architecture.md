@@ -116,7 +116,7 @@ flowchart LR
 | `/safety-quality` | 工安與品質管理 |
 | `/contact` | 聯絡我們／工程洽詢 |
 | `/privacy` | 隱私權政策 |
-| `/news` | 最新消息 |
+| `/news`、`/news/[slug]` | 最新消息列表、單篇頁 |
 | `/careers` | 人才招募 |
 | `/partners` | 協力廠商合作 |
 
@@ -152,12 +152,12 @@ flowchart LR
 | 項目 | 做法 | 理由 |
 |---|---|---|
 | 頁面產生方式 | 前台頁面每次請求由伺服器產生完整 HTML（`lib/site-data` 每個函式先 `await connection()`） | Docker build 階段沒有資料庫：`connection()` 讓 `next build` 直接把頁面標成請求時產生，不會在 build 時連資料庫或把待填內容烤進靜態檔 |
-| 資料快取 | `unstable_cache`＋標籤（`lib/site-data/tags.ts`），保險期限 1 小時 | 大部分請求不查資料庫；有人不經後台改資料庫時最晚 1 小時更新 |
+| 資料快取 | `unstable_cache`＋標籤（`lib/site-data/tags.ts`），保險期限 1 小時 | 大部分請求不查資料庫；有人不經後台改資料庫時最晚 1 小時更新，要立刻更新就到後台儀表板按「重新整理前台快取」（ADMIN） |
 | 存檔後更新 | server action 成功後 `updateTag()`（內容：`lib/admin/content.ts` 的 `revalidateContent()`；公司資料：`settings.ts`；圖片 alt：`media.ts`），另保留原本的 `revalidatePath()` | `updateTag` 立即失效，下一個請求就讀新資料（`revalidateTag(…, "max")` 會先給一次舊資料） |
 | 不用 Cache Components | 沒開 `cacheComponents`，所以不用 `"use cache"`／`cacheTag` | 開了要把後台所有讀 cookie 的頁面改成 Suspense 結構，牽動太大。Next 16 文件標註 `unstable_cache` 已由 `"use cache"` 取代，但不開 Cache Components 的舊模型指南（caching-without-cache-components）仍用它；前台的快取寫法集中在 `lib/site-data/index.ts`，之後改用 `"use cache"` 只動這一個檔案（後台仍要另外改 Suspense 結構） |
 | 圖片網址 | 快取只存 `storageKey`，網址每次請求用 `lib/storage` 的 `getUrl()` 組 | 換 `STORAGE_DRIVER` 不會讀到舊網址；S3 完整網址先不經 Next 圖片最佳化（未設 `remotePatterns`） |
 | 證照過期 | 快取只存「已上架」，過期與否每次請求依台北時間判斷 | 不會因為快取顯示已過期的證照 |
-| 單案網址 | 先比對已快取的工程列表，存在才查單筆；`params.slug` 先用 `decodeSlugParam()` 解碼 | 亂打的網址不會各自建立快取；Next 16 給頁面的 params 是 `encodeURIComponent` 過的值，中文代稱要解碼 |
+| 單案／單篇網址 | 工程單案、消息單篇都先比對已快取的列表，存在才查單筆；`params.slug` 先用 `decodeSlugParam()` 解碼 | 亂打的網址不會各自建立快取；Next 16 給頁面的 params 是 `encodeURIComponent` 過的值，中文代稱要解碼 |
 | 例外 | 分享圖 `app/(site)/opengraph-image.tsx` 固定用 `DEFAULT_COMPANY_NAME` | build 時產生、字型只含現有字的子集 |
 | 多台機器 | 快取在 Next 程序的記憶體與 `.next/cache`，目前單一容器沒問題 | 之後開多個容器要設定共用的 `cacheHandlers`，否則各容器各自失效 |
 
@@ -167,7 +167,22 @@ flowchart LR
 | 專業團隊 | `getPublicTeamMembers()`（已上架＋同意公開） | 待填範例卡片 |
 | 營造業登記與資格 | `getSiteCompany()`、`getPublicCertifications()`（已上架＋未過期） | 待填範例證照卡 |
 | 工程實績列表、單案、首頁精選、sitemap | `getPublishedProjects()`、`getProjectBySlug()`、`getFeaturedProjects()` | 範例專案（`lib/placeholder-project.ts`）；有真實工程後 `/projects/example-project` 回 404 |
-| 最新消息、人才招募 | `getPublishedNews()`、`getPublishedJobs()` | 範例列表、範例職缺 |
+| 最新消息列表、單篇、sitemap | `getPublishedNews()`、`getNewsBySlug()` | 範例列表；單篇找不到回 404 |
+| 人才招募 | `getPublishedJobs()` | 範例職缺 |
+
+### 登入者預覽
+
+已登入後台的人（ADMIN、EDITOR）在前台看得到訪客看不到的內容，後台每一筆內容的「前台查看」都能點。
+
+| 項目 | 做法 |
+|---|---|
+| 判斷 | `lib/preview.ts` 的 `isAdminPreview()`：`getAdminUser()` 查資料庫確認 session 有效（不是只看 cookie）；沒有 cookie 的訪客不查資料庫 |
+| 未開放頁面 | `await requireLaunched(path)`（`lib/preview.ts`）：正式環境訪客 404、登入者放行；頁面頂部顯示「預覽模式」橫幅（`components/launch-preview-banner.tsx`，dev 另附註訪客也看得到） |
+| 未上架／不公開內容 | 登入者改用 `lib/site-data/preview.ts` 的 `getPreviewXxx()`：含未上架、未同意公開的成員、已過期證照，每筆帶 `previewLabels`，前台用 `components/preview-labels.tsx` 顯示標籤；未上架的工程、消息單頁也看得到，訪客仍 404 |
+| 快取隔離 | 預覽查詢不走 `unstable_cache`（不讀也不寫公開快取），只用 React `cache()` 在同一請求內去重；sitemap 一律用公開資料 |
+| noindex | 登入者看到的前台頁一律 `noindex, nofollow`（`pageMetadata()`）；爬蟲不會登入，不影響 SEO |
+| 後台捷徑 | 五種內容的列表操作欄與編輯頁頂部有「前台查看」（新分頁），網址規則集中在 `lib/admin/public-url.ts`：工程 `/projects/{代稱}`、消息 `/news/{代稱}`、職缺 `/careers#job-{id}`、團隊 `/about/team#member-{id}`、證照 `/about/license#cert-{id}`；旁邊小字「前台」或「預覽（訪客看不到）」 |
+| 錨點 | 列表型內容的卡片 id 由 `lib/content.ts` 的 `contentAnchor` 產生；`:target` 時鋼藍框線＋淡底，`scroll-margin-top` 留白 |
 
 上線前檢查以資料庫為準：後台儀表板的「上線前檢查」直接查資料庫（權威）；`npm run check:launch` 連得到資料庫時依實際值判斷，連不到（Docker build）時資料庫相關項目列為「未檢查」、不計入合計。
 

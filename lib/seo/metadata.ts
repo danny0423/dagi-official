@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { isLaunched, launchPreviewEnabled } from "@/lib/launch";
+import { isAdminPreview } from "@/lib/preview";
 
 // 全站共用的 Open Graph 設定，只放在 app/layout.tsx（siteName 是資料庫的公司名稱）。
 // 這裡刻意不放 title、description、url，各頁也不要自己設定 openGraph：
@@ -26,20 +27,23 @@ export const notFoundMetadata: Metadata = {
 /**
  * 前台每一頁的 metadata：標題、給搜尋結果看的描述、canonical。
  * description 只能寫頁面上已經有、而且不是待填的內容，不可以補造事實（AGENTS.md）。
+ * 要 await：會查登入狀態（lib/preview.ts）。
  */
-export function pageMetadata({ path, title, description }: {
+export async function pageMetadata({ path, title, description }: {
   /** 這一頁的正式網址路徑，例如 "/about/license" */
   path: string;
   title: Metadata["title"];
   description: string;
-}): Metadata {
-  // 未開放的頁面在正式環境會回 404（requireLaunched），標題與描述也要跟著是 404 的
-  if (!isLaunched(path) && !launchPreviewEnabled) return notFoundMetadata;
+}): Promise<Metadata> {
+  const launched = isLaunched(path);
+  const preview = await isAdminPreview();
+  // 未開放的頁面在正式環境，訪客會看到 404（requireLaunched），標題與描述也要跟著是 404 的
+  if (!launched && !launchPreviewEnabled && !preview) return notFoundMetadata;
   return {
     title,
     description,
     alternates: { canonical: path },
-    // 走到這裡的未開放頁面只會是開發環境預覽（正式環境已在上面改成 404 的 metadata），加上 noindex 以防萬一
-    ...(isLaunched(path) ? {} : { robots: { index: false, follow: false } }),
+    // noindex：未開放頁面（開發環境預覽、登入者預覽），以及登入者看到的任何前台頁（可能含未上架內容，lib/preview.ts）
+    ...(launched && !preview ? {} : { robots: { index: false, follow: false } }),
   };
 }
